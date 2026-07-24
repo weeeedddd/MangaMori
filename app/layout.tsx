@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
-import { headers } from "next/headers";
 import "./globals.css";
 
 const bodyFont = Noto_Sans_JP({
@@ -17,49 +16,41 @@ const displayFont = Noto_Serif_JP({
   display: "swap",
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host =
-    requestHeaders.get("x-forwarded-host")?.split(",")[0]?.trim() ||
-    requestHeaders.get("host") ||
-    "localhost:3000";
-  const protocol =
-    requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
-    (host.startsWith("localhost") ? "http" : "https");
-  const origin = `${protocol}://${host}`;
-  const title = "MangaMori — Anime & Manhwa Empfehlungen";
-  const description =
-    "Entdecke persönliche Anime- und Manhwa-Empfehlungen passend zu deinen Lieblingsgenres — mit echten Covern und Live-Daten von AniList.";
-  const socialImage = new URL("/og.png", origin).toString();
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://weeeedddd.github.io/MangaMori/";
+const title = "MangaMori — Anime & Manhwa Empfehlungen";
+const description =
+  "Entdecke persönliche Anime- und Manhwa-Empfehlungen passend zu deinen Lieblingsgenres — mit echten Covern und Live-Daten von AniList.";
+const socialImage = new URL("og.png", siteUrl).toString();
 
-  return {
-    metadataBase: new URL(origin),
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "MangaMori",
     title,
     description,
-    openGraph: {
-      type: "website",
-      url: origin,
-      siteName: "MangaMori",
-      title,
-      description,
-      locale: "de_DE",
-      images: [
-        {
-          url: socialImage,
-          width: 1760,
-          height: 909,
-          alt: "MangaMori — Dein nächstes Kapitel wartet.",
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [socialImage],
-    },
-  };
-}
+    locale: "de_DE",
+    images: [
+      {
+        url: socialImage,
+        width: 1760,
+        height: 909,
+        alt: "MangaMori — Dein nächstes Kapitel wartet.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: [socialImage],
+  },
+};
 
 export const viewport: Viewport = {
   colorScheme: "light",
