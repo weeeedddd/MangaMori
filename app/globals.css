@@ -715,6 +715,14 @@ legend span {
   font-size: 12px;
 }
 
+.action-cluster {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .submit-button {
   display: inline-flex;
   min-height: 58px;
@@ -756,6 +764,49 @@ legend span {
 .submit-button:disabled {
   cursor: wait;
   opacity: 0.68;
+}
+
+.surprise-button {
+  display: inline-flex;
+  min-height: 58px;
+  cursor: pointer;
+  align-items: center;
+  gap: 18px;
+  padding: 4px 5px 4px 21px;
+  border: 2px solid var(--red-dark);
+  background:
+    linear-gradient(90deg, rgba(166, 56, 63, 0.06), transparent 70%),
+    var(--paper-light);
+  color: var(--red-dark);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition:
+    background-color 240ms var(--ease-ink),
+    color 240ms var(--ease-ink),
+    transform 240ms var(--ease-ink),
+    opacity 240ms var(--ease-ink);
+}
+
+.surprise-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-left: 1px solid currentColor;
+  font-family: var(--font-display), serif;
+  font-size: 22px;
+}
+
+.surprise-button:hover:not(:disabled) {
+  background: var(--red-dark);
+  color: var(--paper-light);
+  transform: translateY(-2px) rotate(-0.3deg);
+}
+
+.surprise-button:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .inline-error {
@@ -823,6 +874,72 @@ legend span {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 36px 24px;
+}
+
+.results-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  margin-top: 54px;
+  padding: 26px 0;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.results-actions p {
+  max-width: 580px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.results-actions .eyebrow {
+  margin-bottom: 8px;
+  color: var(--red);
+  font-size: 9px;
+}
+
+.load-more-button {
+  display: inline-flex;
+  min-height: 58px;
+  flex-shrink: 0;
+  cursor: pointer;
+  align-items: center;
+  gap: 20px;
+  padding: 5px 6px 5px 24px;
+  border: 0;
+  background: var(--ink);
+  color: var(--white);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition:
+    background-color 240ms var(--ease-ink),
+    transform 240ms var(--ease-ink),
+    opacity 240ms var(--ease-ink);
+}
+
+.load-more-button .button-mark {
+  color: var(--ink);
+}
+
+.load-more-button:hover:not(:disabled) {
+  background: var(--red-dark);
+  transform: translateY(-2px);
+}
+
+.load-more-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.load-more-error {
+  margin: 18px 0 0;
+  padding-left: 14px;
+  border-left: 3px solid var(--danger);
+  color: var(--danger);
+  font-size: 12px;
 }
 
 .recommendation-frame {
@@ -1363,12 +1480,20 @@ legend span {
   }
 
   .form-footer,
-  .results-heading {
+  .results-heading,
+  .results-actions {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .submit-button {
+  .action-cluster {
+    justify-content: stretch;
+  }
+
+  .submit-button,
+  .surprise-button,
+  .load-more-button {
+    flex: 1 1 220px;
     justify-content: space-between;
   }
 
@@ -1501,6 +1626,17 @@ legend span {
 
   .results-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-cluster {
+    flex-direction: column;
+  }
+
+  .submit-button,
+  .surprise-button,
+  .load-more-button {
+    width: 100%;
+    flex-basis: auto;
   }
 
   .card-copy {

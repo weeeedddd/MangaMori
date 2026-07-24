@@ -1,49 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-
-type Scope = "ALL" | "ANIME" | "MANHWA";
-type AniListMediaType = "ANIME" | "MANGA";
-type GenreKey =
-  | "Action"
-  | "Adventure"
-  | "Isekai"
-  | "Romance"
-  | "Slice of Life"
-  | "Fantasy"
-  | "Mystery"
-  | "Comedy"
-  | "Drama"
-  | "Murim";
-
-type Media = {
-  id: number;
-  type: AniListMediaType;
-  title: {
-    romaji: string | null;
-    english: string | null;
-    native: string | null;
-  };
-  coverImage: {
-    extraLarge: string | null;
-    large: string | null;
-    color: string | null;
-  };
-  description: string | null;
-  format: string | null;
-  averageScore: number | null;
-  popularity: number | null;
-  genres: string[];
-  tags: Array<{ name: string; rank: number }>;
-  siteUrl: string;
-  seasonYear: number | null;
-  status: string | null;
-};
-
-type QueryTarget = {
-  type: AniListMediaType;
-  country?: "KR";
-};
+import {
+  createDiscoverySeed,
+  discoverStories,
+  mediaKey,
+  reasonsFor,
+  type DiscoveryMode,
+  type GenreKey,
+  type Media,
+  type Scope,
+} from "./discovery";
 
 const GENRES: Array<{
   key: GenreKey;
@@ -62,22 +29,6 @@ const GENRES: Array<{
   { key: "Murim", label: "Murim", hint: "Clans & Kultivierung" },
 ];
 
-const GENRE_MAP: Partial<Record<GenreKey, string>> = {
-  Action: "Action",
-  Adventure: "Adventure",
-  Romance: "Romance",
-  "Slice of Life": "Slice of Life",
-  Fantasy: "Fantasy",
-  Mystery: "Mystery",
-  Comedy: "Comedy",
-  Drama: "Drama",
-};
-
-const TAG_MAP: Partial<Record<GenreKey, string[]>> = {
-  Isekai: ["Isekai", "Reincarnation"],
-  Murim: ["Cultivation", "Martial Arts", "Wuxia"],
-};
-
 const FORMAT_LABELS: Record<string, string> = {
   TV: "TV-Serie",
   TV_SHORT: "Kurzserie",
@@ -91,51 +42,7 @@ const FORMAT_LABELS: Record<string, string> = {
   ONE_SHOT: "One Shot",
 };
 
-const ANILIST_QUERY = `
-  query DiscoverStories(
-    $page: Int
-    $type: MediaType
-    $country: CountryCode
-    $genres: [String]
-    $tags: [String]
-  ) {
-    Page(page: $page, perPage: 18) {
-      media(
-        type: $type
-        countryOfOrigin: $country
-        isAdult: false
-        genre_in: $genres
-        tag_in: $tags
-        sort: [POPULARITY_DESC, SCORE_DESC]
-      ) {
-        id
-        type
-        title {
-          romaji
-          english
-          native
-        }
-        coverImage {
-          extraLarge
-          large
-          color
-        }
-        description(asHtml: false)
-        format
-        averageScore
-        popularity
-        genres
-        tags {
-          name
-          rank
-        }
-        siteUrl
-        seasonYear
-        status
-      }
-    }
-  }
-`;
+const SEEN_STORAGE_KEY = "mangamori-seen-stories";
 
 function plainText(value: string | null) {
   if (!value) {
@@ -152,145 +59,35 @@ function plainText(value: string | null) {
     .trim();
 }
 
-function unique(values: string[]) {
-  return [...new Set(values)];
-}
-
-function targetsFor(scope: Scope): QueryTarget[] {
-  if (scope === "ANIME") return [{ type: "ANIME" }];
-  if (scope === "MANHWA") return [{ type: "MANGA", country: "KR" }];
-  return [{ type: "ANIME" }, { type: "MANGA", country: "KR" }];
-}
-
-function reasonsFor(media: Media, selected: GenreKey[]) {
-  return selected.filter((key) => {
-    const genre = GENRE_MAP[key];
-    const tags = TAG_MAP[key];
-    return (
-      (genre ? media.genres.includes(genre) : false) ||
-      (tags ? media.tags.some((tag) => tags.includes(tag.name)) : false)
+function readSeenKeys() {
+  try {
+    const stored = window.localStorage.getItem(SEEN_STORAGE_KEY);
+    const parsed = stored ? (JSON.parse(stored) as unknown) : [];
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((key): key is string => typeof key === "string")
+        : [],
     );
-  });
+  } catch {
+    window.localStorage.removeItem(SEEN_STORAGE_KEY);
+    return new Set<string>();
+  }
 }
 
-function rankMedia(media: Media[], selected: GenreKey[]) {
-  return [...media].sort((a, b) => {
-    const aMatches = reasonsFor(a, selected).length;
-    const bMatches = reasonsFor(b, selected).length;
-    const aQuality = (a.averageScore ?? 0) + Math.log10(a.popularity ?? 1) * 3;
-    const bQuality = (b.averageScore ?? 0) + Math.log10(b.popularity ?? 1) * 3;
-    return bMatches - aMatches || bQuality - aQuality;
-  });
-}
-
-function interleave(groups: Media[][], limit: number) {
-  const output: Media[] = [];
-  const seen = new Set<string>();
-  let index = 0;
-
-  while (output.length < limit && groups.some((group) => index < group.length)) {
-    for (const group of groups) {
-      const item = group[index];
-      if (!item) continue;
-      const key = `${item.type}-${item.id}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        output.push(item);
-      }
-      if (output.length === limit) break;
-    }
-    index += 1;
-  }
-
-  return output;
-}
-
-async function queryAniList(
-  target: QueryTarget,
-  filters: { genres?: string[]; tags?: string[] },
-  signal: AbortSignal,
-) {
-  const response = await fetch("https://graphql.anilist.co", {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      query: ANILIST_QUERY,
-      variables: {
-        page: 1,
-        type: target.type,
-        country: target.country,
-        genres: filters.genres,
-        tags: filters.tags,
-      },
-    }),
-    signal,
-  });
-
-  if (response.status === 429) {
-    throw new Error(
-      "AniList bekommt gerade sehr viele Anfragen. Gönn dem Regal einen kurzen Moment und versuche es gleich noch einmal.",
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      "Die Geschichten konnten gerade nicht aus dem Archiv geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.",
-    );
-  }
-
-  const payload = (await response.json()) as {
-    data?: { Page?: { media?: Media[] } };
-    errors?: Array<{ message: string }>;
-  };
-
-  if (payload.errors?.length) {
-    throw new Error(
-      "Das Anime-Archiv hat die Suche abgelehnt. Bitte ändere deine Auswahl und probiere es erneut.",
-    );
-  }
-
-  return (payload.data?.Page?.media ?? []).filter(
-    (item) =>
-      Boolean(item.coverImage.extraLarge || item.coverImage.large) &&
-      Boolean(item.siteUrl),
+function rememberStories(stories: Media[]) {
+  const keys = [...readSeenKeys(), ...stories.map(mediaKey)];
+  window.localStorage.setItem(
+    SEEN_STORAGE_KEY,
+    JSON.stringify([...new Set(keys)].slice(-600)),
   );
 }
 
-async function discover(
-  scope: Scope,
-  selected: GenreKey[],
-  signal: AbortSignal,
-) {
-  const genres = unique(
-    selected.flatMap((key) => (GENRE_MAP[key] ? [GENRE_MAP[key]!] : [])),
-  );
-  const tags = unique(selected.flatMap((key) => TAG_MAP[key] ?? []));
-  const targets = targetsFor(scope);
-
-  const groups = await Promise.all(
-    targets.map(async (target) => {
-      const requests: Array<Promise<Media[]>> = [];
-      if (genres.length) {
-        requests.push(queryAniList(target, { genres }, signal));
-      }
-      if (tags.length) {
-        requests.push(queryAniList(target, { tags }, signal));
-      }
-
-      const batches = await Promise.all(requests);
-      const deduplicated = new Map<string, Media>();
-      batches.flat().forEach((item) => {
-        deduplicated.set(`${item.type}-${item.id}`, item);
-      });
-
-      return rankMedia([...deduplicated.values()], selected);
-    }),
-  );
-
-  return interleave(groups, 12);
+function compactNumber(value: number | null) {
+  if (!value) return "Nische";
+  return new Intl.NumberFormat("de-DE", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
 }
 
 function ScopeButton({
@@ -319,12 +116,14 @@ function RecommendationCard({
   media,
   index,
   selected,
+  mode,
 }: {
   media: Media;
   index: number;
   selected: GenreKey[];
+  mode: DiscoveryMode;
 }) {
-  const reasons = reasonsFor(media, selected);
+  const reasons = mode === "HIDDEN" ? reasonsFor(media, selected) : [];
   const title = media.title.english || media.title.romaji || media.title.native;
   const originalTitle = media.title.native || media.title.romaji || title;
   const cover = media.coverImage.extraLarge || media.coverImage.large || "";
@@ -337,6 +136,9 @@ function RecommendationCard({
     <article className="recommendation-frame" style={{ "--order": index } as React.CSSProperties}>
       <div className="recommendation-card">
         <div className="cover-wrap">
+          {/* AniList liefert die Cover-URL erst zur Laufzeit; das native Bild
+              funktioniert identisch im Worker- und im statischen Pages-Build. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={cover}
             alt={`Cover von ${title}`}
@@ -358,8 +160,11 @@ function RecommendationCard({
 
         <div className="card-copy">
           <div className="card-kicker">
-            <span>Kapitel {String(index + 1).padStart(2, "0")}</span>
-            {media.seasonYear ? <span>{media.seasonYear}</span> : null}
+            <span>
+              {mode === "SURPRISE" ? "Zufallsfund" : "Geheimtipp"}{" "}
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span>{compactNumber(media.popularity)} Listen</span>
           </div>
 
           <h3>{title}</h3>
@@ -409,25 +214,42 @@ export default function Home() {
   const [scope, setScope] = useState<Scope>("ALL");
   const [selected, setSelected] = useState<GenreKey[]>(["Fantasy", "Romance"]);
   const [results, setResults] = useState<Media[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [resultGenres, setResultGenres] = useState<GenreKey[]>([]);
+  const [resultMode, setResultMode] = useState<DiscoveryMode>("HIDDEN");
+  const [loadingMode, setLoadingMode] = useState<
+    "initial" | "more" | "surprise" | null
+  >(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+  const seedRef = useRef(0);
+  const batchRef = useRef(0);
+  const activeScopeRef = useRef<Scope>("ALL");
+  const activeSelectionRef = useRef<GenreKey[]>([]);
+  const loading = loadingMode !== null;
+  const initialLoading =
+    loadingMode === "initial" || loadingMode === "surprise";
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("mangamori-preferences");
-    if (!saved) return;
+    const restorePreferences = window.setTimeout(() => {
+      const saved = window.localStorage.getItem("mangamori-preferences");
+      if (!saved) return;
 
-    try {
-      const preferences = JSON.parse(saved) as {
-        scope?: Scope;
-        genres?: GenreKey[];
-      };
-      if (preferences.scope) setScope(preferences.scope);
-      if (preferences.genres?.length) setSelected(preferences.genres);
-    } catch {
-      window.localStorage.removeItem("mangamori-preferences");
-    }
+      try {
+        const preferences = JSON.parse(saved) as {
+          scope?: Scope;
+          genres?: GenreKey[];
+        };
+        if (preferences.scope) setScope(preferences.scope);
+        if (preferences.genres?.length) setSelected(preferences.genres);
+      } catch {
+        window.localStorage.removeItem("mangamori-preferences");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(restorePreferences);
   }, []);
 
   useEffect(() => {
@@ -448,39 +270,111 @@ export default function Home() {
         ? current.filter((item) => item !== key)
         : [...current, key],
     );
+    setFormError(null);
     setError(null);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selected.length) {
-      setError("Wähle mindestens eine Stimmung, damit wir dein Regal füllen können.");
+  async function runDiscovery(mode: DiscoveryMode, append: boolean) {
+    const discoveryScope = append
+      ? activeScopeRef.current
+      : mode === "SURPRISE"
+        ? "ALL"
+        : scope;
+    const discoveryGenres = append
+      ? activeSelectionRef.current
+      : mode === "SURPRISE"
+        ? []
+        : selected;
+
+    if (mode === "HIDDEN" && !discoveryGenres.length) {
+      setFormError(
+        "Wähle mindestens eine Stimmung, damit wir dein Regal füllen können.",
+      );
       return;
     }
 
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
-    setLoading(true);
+    setLoadingMode(append ? "more" : mode === "SURPRISE" ? "surprise" : "initial");
+    setFormError(null);
     setError(null);
     setHasSearched(true);
 
-    window.localStorage.setItem(
-      "mangamori-preferences",
-      JSON.stringify({ scope, genres: selected }),
-    );
+    if (!append) {
+      seedRef.current = createDiscoverySeed();
+      batchRef.current = 0;
+      activeScopeRef.current = discoveryScope;
+      activeSelectionRef.current = discoveryGenres;
+      setResultMode(mode);
+      setResultGenres(discoveryGenres);
+      setResults([]);
+      setHasMore(false);
+
+      if (mode === "HIDDEN") {
+        window.localStorage.setItem(
+          "mangamori-preferences",
+          JSON.stringify({ scope, genres: selected }),
+        );
+      }
+    } else {
+      batchRef.current += 1;
+    }
+
+    const visibleKeys = new Set(results.map(mediaKey));
+    const previouslySeen = readSeenKeys();
+    const excludedKeys = new Set([
+      ...previouslySeen,
+      ...(append ? visibleKeys : []),
+    ]);
 
     try {
-      const stories = await discover(scope, selected, controller.signal);
-      setResults(stories);
-      if (!stories.length) {
+      let batch = await discoverStories({
+        scope: discoveryScope,
+        selected: discoveryGenres,
+        mode,
+        seed: seedRef.current,
+        batch: batchRef.current,
+        excludeKeys: excludedKeys,
+        signal: controller.signal,
+      });
+
+      // Falls ein Stammgast bereits sehr viele Titel gesehen hat, öffnen wir
+      // bei einer neuen Suche dasselbe Archiv noch einmal ohne den Merkzettel.
+      if (!append && !batch.items.length && previouslySeen.size) {
+        batch = await discoverStories({
+          scope: discoveryScope,
+          selected: discoveryGenres,
+          mode,
+          seed: seedRef.current,
+          batch: batchRef.current,
+          signal: controller.signal,
+        });
+      }
+
+      if (append) {
+        setResults((current) => {
+          const combined = new Map(current.map((item) => [mediaKey(item), item]));
+          batch.items.forEach((item) => combined.set(mediaKey(item), item));
+          return [...combined.values()];
+        });
+      } else {
+        setResults(batch.items);
+      }
+
+      rememberStories(batch.items);
+      setHasMore(batch.hasMore && batch.items.length > 0);
+
+      if (!batch.items.length) {
         setError(
-          "Diese Mischung ist selten. Nimm eine Stimmung heraus oder öffne die Suche für Anime und Manhwa.",
+          append
+            ? "Für diese Richtung haben wir gerade keine weiteren unbekannten Titel gefunden."
+            : "Diese Mischung ist selten. Nimm eine Stimmung heraus oder öffne die Suche für Anime und Manhwa.",
         );
       }
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
-      setResults([]);
+      if (!append) setResults([]);
       setError(
         caught instanceof Error
           ? caught.message
@@ -488,9 +382,22 @@ export default function Home() {
       );
     } finally {
       if (controllerRef.current === controller) {
-        setLoading(false);
+        setLoadingMode(null);
       }
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runDiscovery("HIDDEN", false);
+  }
+
+  async function handleSurprise() {
+    await runDiscovery("SURPRISE", false);
+  }
+
+  async function handleLoadMore() {
+    await runDiscovery(resultMode, true);
   }
 
   return (
@@ -527,7 +434,7 @@ export default function Home() {
             <p className="hero-lede">
               Sag uns, welche Welten dich fesseln. MangaMori öffnet dir ein
               handverlesenes Regal mit echten Covern, Originaltiteln und
-              Geschichten, die zu deiner Stimmung passen.
+              Geheimtipps jenseits der üblichen Bestseller.
             </p>
             <a className="primary-link" href="#genre-kompass">
               Genre-Kompass öffnen
@@ -630,19 +537,38 @@ export default function Home() {
                       } gewählt: ${selectionSummary}`
                     : "Noch keine Stimmung ausgewählt"}
                 </p>
-                <button className="submit-button" type="submit" disabled={loading}>
-                  <span>
-                    {loading ? "Regal wird kuratiert …" : "Mein Regal kuratieren"}
-                  </span>
-                  <span className="button-mark" aria-hidden="true">
-                    {loading ? "…" : "→"}
-                  </span>
-                </button>
+                <div className="action-cluster">
+                  <button
+                    className="surprise-button"
+                    type="button"
+                    disabled={loading}
+                    onClick={handleSurprise}
+                  >
+                    <span>
+                      {loadingMode === "surprise"
+                        ? "Wir würfeln …"
+                        : "Überrasch mich"}
+                    </span>
+                    <span className="surprise-mark" aria-hidden="true">
+                      {loadingMode === "surprise" ? "…" : "?"}
+                    </span>
+                  </button>
+                  <button className="submit-button" type="submit" disabled={loading}>
+                    <span>
+                      {loadingMode === "initial"
+                        ? "Geheimtipps werden gesucht …"
+                        : "Geheimtipps finden"}
+                    </span>
+                    <span className="button-mark" aria-hidden="true">
+                      {loadingMode === "initial" ? "…" : "→"}
+                    </span>
+                  </button>
+                </div>
               </div>
 
-              {error && !hasSearched ? (
+              {formError ? (
                 <p className="inline-error" role="alert">
-                  {error}
+                  {formError}
                 </p>
               ) : null}
             </div>
@@ -652,31 +578,44 @@ export default function Home() {
         <section className="results-section" id="empfehlungen" aria-labelledby="results-title">
           <div className="results-heading">
             <div>
-              <p className="eyebrow">Dein persönliches Regal</p>
+              <p className="eyebrow">
+                {resultMode === "SURPRISE"
+                  ? "Dein persönliches Regal · außerhalb deiner Bubble"
+                  : "Dein persönliches Regal · Geheimtipps"}
+              </p>
               <h2 id="results-title">
-                {loading
-                  ? "Wir blättern für dich …"
+                {initialLoading
+                  ? loadingMode === "surprise"
+                    ? "Wir würfeln neue Welten …"
+                    : "Wir blättern abseits der Bestseller …"
                   : results.length
-                    ? `${results.length} Geschichten für dich`
+                    ? `${results.length} ${
+                        resultMode === "SURPRISE" ? "Zufallsfunde" : "Geheimtipps"
+                      }`
                     : "Bereit für deine Auswahl"}
               </h2>
             </div>
             <p className="api-note">
               Live-Daten & echte Cover
-              <span>über AniList</span>
+              <span>
+              {resultMode === "SURPRISE"
+                ? "73+ Punkte · genre-frei · zufällige AniList-Seiten"
+                : "69+ Punkte · Mainstream gefiltert · zufällige AniList-Seiten"}
+              </span>
             </p>
           </div>
 
           <div className="results-status" aria-live="polite" aria-atomic="true">
-            {loading ? "Empfehlungen werden geladen." : null}
+            {initialLoading ? "Neue Empfehlungen werden geladen." : null}
+            {loadingMode === "more" ? "Weitere Empfehlungen werden geladen." : null}
             {!loading && results.length
               ? `${results.length} Empfehlungen wurden geladen.`
               : null}
           </div>
 
-          {loading ? <LoadingShelf /> : null}
+          {initialLoading ? <LoadingShelf /> : null}
 
-          {!loading && error && hasSearched ? (
+          {!initialLoading && error && hasSearched && !results.length ? (
             <div className="error-panel" role="alert">
               <span className="error-number">!</span>
               <div>
@@ -687,17 +626,53 @@ export default function Home() {
             </div>
           ) : null}
 
-          {!loading && !error && results.length ? (
-            <div className="results-grid">
-              {results.map((media, index) => (
-                <RecommendationCard
-                  key={`${media.type}-${media.id}`}
-                  media={media}
-                  index={index}
-                  selected={selected}
-                />
-              ))}
-            </div>
+          {!initialLoading && results.length ? (
+            <>
+              <div className="results-grid">
+                {results.map((media, index) => (
+                  <RecommendationCard
+                    key={mediaKey(media)}
+                    media={media}
+                    index={index}
+                    selected={resultGenres}
+                    mode={resultMode}
+                  />
+                ))}
+              </div>
+
+              <div className="results-actions">
+                <div>
+                  <p className="eyebrow">Noch ein Kapitel?</p>
+                  <p>
+                    Bereits {results.length} einzigartige Titel im Regal. Wir
+                    merken uns, was du schon gesehen hast.
+                  </p>
+                </div>
+                <button
+                  className="load-more-button"
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loading || !hasMore}
+                >
+                  <span>
+                    {loadingMode === "more"
+                      ? "Weitere Seiten öffnen …"
+                      : hasMore
+                        ? "Mehr laden"
+                        : "Regal ausgeschöpft"}
+                  </span>
+                  <span className="button-mark" aria-hidden="true">
+                    {loadingMode === "more" ? "…" : "↓"}
+                  </span>
+                </button>
+              </div>
+
+              {error ? (
+                <p className="load-more-error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+            </>
           ) : null}
 
           {!loading && !error && !results.length ? (
@@ -708,7 +683,8 @@ export default function Home() {
                 <h3>Dein Regal wartet auf eine Richtung.</h3>
                 <p>
                   Wähle oben deine Lieblingsgenres und öffne das Archiv. Deine
-                  Empfehlungen erscheinen hier als persönliche Manga-Panels.
+                  unbekannteren Empfehlungen erscheinen hier als persönliche
+                  Manga-Panels – oder lass dich direkt überraschen.
                 </p>
               </div>
               <div className="empty-lines" aria-hidden="true">
@@ -727,8 +703,9 @@ export default function Home() {
             <h2>Weniger scrollen. Mehr fühlen.</h2>
             <p>
               Keine erfundenen Titel, keine Platzhalter-Cover: MangaMori liest
-              deine Genre-Auswahl, durchsucht AniList und ordnet echte Anime und
-              koreanische Manhwa nach Passung und Beliebtheit.
+              deine Genre-Auswahl, filtert Mainstream aus AniList, prüft eine
+              Mindestbewertung und öffnet zufällige Archivseiten voller echter
+              Anime und koreanischer Manhwa.
             </p>
           </div>
           <blockquote>

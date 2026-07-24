@@ -33,5 +33,8 @@ test("server-renders the MangaMori discovery experience", async () => {
   assert.match(html, /Genre-Kompass/);
   assert.match(html, /Dein persönliches Regal/);
   assert.match(html, /Live-Daten &amp; echte Cover/);
+  assert.match(html, /Geheimtipps finden/);
+  assert.match(html, /Überrasch mich/);
+  assert.match(html, /Mainstream gefiltert/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Starter Project/i);
 });
