@@ -34,6 +34,16 @@ const GENRE_ORDER: GenreKey[] = [
   "Mecha",
   "Mahou Shoujo",
   "Music",
+  "Historical",
+  "Military",
+  "School",
+  "Harem",
+  "Vampire",
+  "Magic",
+  "Super Power",
+  "Villainess",
+  "Revenge",
+  "Post-Apocalyptic",
 ];
 
 const SEEN_STORAGE_KEY = "mangamori-seen-stories";

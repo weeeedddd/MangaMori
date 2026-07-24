@@ -21,7 +21,17 @@ export type GenreKey =
   | "Sports"
   | "Mecha"
   | "Mahou Shoujo"
-  | "Music";
+  | "Music"
+  | "Historical"
+  | "Military"
+  | "School"
+  | "Harem"
+  | "Vampire"
+  | "Magic"
+  | "Super Power"
+  | "Villainess"
+  | "Revenge"
+  | "Post-Apocalyptic";
 
 export type Media = {
   id: number;
@@ -140,6 +150,16 @@ const GENRE_MAP: Partial<Record<GenreKey, string>> = {
 const TAG_MAP: Partial<Record<GenreKey, string[]>> = {
   Isekai: ["Isekai", "Reincarnation"],
   Murim: ["Cultivation", "Martial Arts", "Wuxia"],
+  Historical: ["Historical"],
+  Military: ["Military"],
+  School: ["School", "School Club"],
+  Harem: ["Harem"],
+  Vampire: ["Vampire"],
+  Magic: ["Magic"],
+  "Super Power": ["Super Power"],
+  Villainess: ["Villainess"],
+  Revenge: ["Revenge"],
+  "Post-Apocalyptic": ["Post-Apocalyptic"],
 };
 
 const HIDDEN_GEM_PROFILES: Record<AniListMediaType, DiscoveryProfile> = {
