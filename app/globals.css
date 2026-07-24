@@ -1103,11 +1103,67 @@ legend span {
   transform: scale(1.035);
 }
 
+.cover-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+  animation: previewFade 260ms var(--ease-ink) both;
+}
+
+@keyframes previewFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .cover-shade {
   position: absolute;
+  z-index: 1;
   inset: auto 0 0;
   height: 60%;
   background: linear-gradient(transparent, rgba(10, 6, 8, 0.85));
+}
+
+.preview-toggle {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: rgba(10, 6, 8, 0.5);
+  color: var(--white);
+  font-size: 14px;
+  line-height: 1;
+  padding-left: 3px;
+  backdrop-filter: blur(4px);
+  transition:
+    background-color 220ms var(--ease-ink),
+    transform 220ms var(--ease-ink),
+    border-color 220ms var(--ease-ink);
+}
+
+.preview-toggle:hover {
+  background: rgba(10, 6, 8, 0.7);
+  transform: scale(1.08);
+}
+
+.preview-toggle[aria-pressed="true"] {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: var(--void);
 }
 
 .fav-button {

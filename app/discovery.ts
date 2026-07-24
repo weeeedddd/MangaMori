@@ -19,7 +19,19 @@ export type GenreKey =
   | "Sci-Fi"
   | "Supernatural"
   | "Sports"
-  | "Mecha";
+  | "Mecha"
+  | "Mahou Shoujo"
+  | "Music"
+  | "Historical"
+  | "Military"
+  | "School"
+  | "Harem"
+  | "Vampire"
+  | "Magic"
+  | "Super Power"
+  | "Villainess"
+  | "Revenge"
+  | "Post-Apocalyptic";
 
 export type Media = {
   id: number;
@@ -38,11 +50,19 @@ export type Media = {
   format: string | null;
   averageScore: number | null;
   popularity: number | null;
+  episodes: number | null;
+  chapters: number | null;
   genres: string[];
   tags: Array<{ name: string; rank: number }>;
   siteUrl: string;
   seasonYear: number | null;
   status: string | null;
+  bannerImage: string | null;
+  trailer: {
+    id: string | null;
+    site: string | null;
+    thumbnail: string | null;
+  } | null;
 };
 
 type QueryTarget = {
@@ -131,11 +151,23 @@ const GENRE_MAP: Partial<Record<GenreKey, string>> = {
   Supernatural: "Supernatural",
   Sports: "Sports",
   Mecha: "Mecha",
+  "Mahou Shoujo": "Mahou Shoujo",
+  Music: "Music",
 };
 
 const TAG_MAP: Partial<Record<GenreKey, string[]>> = {
   Isekai: ["Isekai", "Reincarnation"],
   Murim: ["Cultivation", "Martial Arts", "Wuxia"],
+  Historical: ["Historical"],
+  Military: ["Military"],
+  School: ["School", "School Club"],
+  Harem: ["Harem"],
+  Vampire: ["Vampire"],
+  Magic: ["Magic"],
+  "Super Power": ["Super Power"],
+  Villainess: ["Villainess"],
+  Revenge: ["Revenge"],
+  "Post-Apocalyptic": ["Post-Apocalyptic"],
 };
 
 const HIDDEN_GEM_PROFILES: Record<AniListMediaType, DiscoveryProfile> = {
@@ -207,6 +239,8 @@ const ANILIST_QUERY = `
         format
         averageScore
         popularity
+        episodes
+        chapters
         genres
         tags {
           name
@@ -215,6 +249,12 @@ const ANILIST_QUERY = `
         siteUrl
         seasonYear
         status
+        bannerImage
+        trailer {
+          id
+          site
+          thumbnail
+        }
       }
     }
   }

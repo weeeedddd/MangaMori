@@ -99,6 +99,11 @@ export type Translations = {
   kickerSaved: string;
   lists: string;
   niche: string;
+  episodesLabel: (count: number) => string;
+  chaptersLabel: (count: number) => string;
+  scoreTitle: (score: number) => string;
+  previewLabel: string;
+  trailerTitle: (title: string) => string;
   original: string;
   noSynopsis: string;
   save: string;
@@ -220,6 +225,11 @@ export const translations: Record<Lang, Translations> = {
     kickerSaved: "Gemerkt",
     lists: "Listen",
     niche: "Nische",
+    episodesLabel: (count) => `${count} ${count === 1 ? "Folge" : "Folgen"}`,
+    chaptersLabel: (count) => `${count} ${count === 1 ? "Kapitel" : "Kapitel"}`,
+    scoreTitle: (score) => `AniList-Bewertung: ${score}/100`,
+    previewLabel: "Vorschau",
+    trailerTitle: (title) => `Trailer: ${title}`,
     original: "Original:",
     noSynopsis:
       "Für diesen Titel ist derzeit noch keine Kurzbeschreibung verfügbar.",
@@ -277,6 +287,18 @@ export const translations: Record<Lang, Translations> = {
       Supernatural: { label: "Übernatürlich", hint: "Geister & Kräfte" },
       Sports: { label: "Sport", hint: "Ehrgeiz & Team" },
       Mecha: { label: "Mecha", hint: "Roboter & Stahl" },
+      "Mahou Shoujo": { label: "Magical Girl", hint: "Magische Mädchen" },
+      Music: { label: "Musik", hint: "Töne & Bühne" },
+      Historical: { label: "Historisch", hint: "Vergangene Zeiten" },
+      Military: { label: "Militär", hint: "Krieg & Armee" },
+      School: { label: "Schule", hint: "Schulalltag" },
+      Harem: { label: "Harem", hint: "Viele Verehrer" },
+      Vampire: { label: "Vampire", hint: "Blut & Nacht" },
+      Magic: { label: "Magie", hint: "Zauber & Sprüche" },
+      "Super Power": { label: "Superkräfte", hint: "Übermenschlich" },
+      Villainess: { label: "Villainess", hint: "Die Bösewichtin" },
+      Revenge: { label: "Rache", hint: "Vergeltung" },
+      "Post-Apocalyptic": { label: "Endzeit", hint: "Nach dem Untergang" },
     },
   },
 
@@ -371,6 +393,11 @@ export const translations: Record<Lang, Translations> = {
     kickerSaved: "Saved",
     lists: "lists",
     niche: "Niche",
+    episodesLabel: (count) => `${count} ${count === 1 ? "episode" : "episodes"}`,
+    chaptersLabel: (count) => `${count} ${count === 1 ? "chapter" : "chapters"}`,
+    scoreTitle: (score) => `AniList score: ${score}/100`,
+    previewLabel: "Preview",
+    trailerTitle: (title) => `Trailer: ${title}`,
     original: "Original:",
     noSynopsis: "There's no short description available for this title yet.",
     save: "Save",
@@ -427,6 +454,18 @@ export const translations: Record<Lang, Translations> = {
       Supernatural: { label: "Supernatural", hint: "Ghosts & powers" },
       Sports: { label: "Sports", hint: "Ambition & team" },
       Mecha: { label: "Mecha", hint: "Robots & steel" },
+      "Mahou Shoujo": { label: "Magical Girl", hint: "Magical heroines" },
+      Music: { label: "Music", hint: "Sound & stage" },
+      Historical: { label: "Historical", hint: "Bygone eras" },
+      Military: { label: "Military", hint: "War & army" },
+      School: { label: "School", hint: "School days" },
+      Harem: { label: "Harem", hint: "Many admirers" },
+      Vampire: { label: "Vampire", hint: "Blood & night" },
+      Magic: { label: "Magic", hint: "Spells & sorcery" },
+      "Super Power": { label: "Super Power", hint: "Superhuman" },
+      Villainess: { label: "Villainess", hint: "The villainess" },
+      Revenge: { label: "Revenge", hint: "Payback" },
+      "Post-Apocalyptic": { label: "Post-Apocalyptic", hint: "After the fall" },
     },
   },
 };

@@ -32,6 +32,18 @@ const GENRE_ORDER: GenreKey[] = [
   "Supernatural",
   "Sports",
   "Mecha",
+  "Mahou Shoujo",
+  "Music",
+  "Historical",
+  "Military",
+  "School",
+  "Harem",
+  "Vampire",
+  "Magic",
+  "Super Power",
+  "Villainess",
+  "Revenge",
+  "Post-Apocalyptic",
 ];
 
 const SEEN_STORAGE_KEY = "mangamori-seen-stories";
@@ -132,17 +144,32 @@ function RecommendationCard({
   lang: Lang;
   t: Translations;
 }) {
+  const [showPreview, setShowPreview] = useState(false);
   const reasons = mode === "HIDDEN" ? reasonsFor(media, selected) : [];
   const title = media.title.english || media.title.romaji || media.title.native;
   const originalTitle = media.title.native || media.title.romaji || title;
   const cover = media.coverImage.extraLarge || media.coverImage.large || "";
   const format = formatLabel(media, t);
   const tags = reasons.length ? reasons : media.genres.slice(0, 2);
+  const unit =
+    media.type === "MANGA"
+      ? media.chapters
+        ? t.chaptersLabel(media.chapters)
+        : ""
+      : media.episodes
+        ? t.episodesLabel(media.episodes)
+        : "";
+  const trailerId = media.trailer?.site === "youtube" ? media.trailer.id : null;
+  const hasPreview = Boolean(trailerId || media.bannerImage);
 
   return (
     <article className="recommendation-frame" style={{ "--order": index } as React.CSSProperties}>
       <div className="recommendation-card">
-        <div className="cover-wrap">
+        <div
+          className="cover-wrap"
+          onMouseEnter={hasPreview ? () => setShowPreview(true) : undefined}
+          onMouseLeave={hasPreview ? () => setShowPreview(false) : undefined}
+        >
           {/* AniList liefert die Cover-URL erst zur Laufzeit; das native Bild
               funktioniert identisch im Worker- und im statischen Pages-Build. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -153,6 +180,18 @@ function RecommendationCard({
             height="650"
             loading={index < 4 ? "eager" : "lazy"}
           />
+          {showPreview && trailerId ? (
+            <iframe
+              className="cover-preview"
+              src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailerId}&modestbranding=1&rel=0&playsinline=1`}
+              title={t.trailerTitle(title ?? "")}
+              allow="autoplay; encrypted-media"
+              loading="lazy"
+            />
+          ) : showPreview && media.bannerImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="cover-preview" src={media.bannerImage} alt="" />
+          ) : null}
           <div className="cover-shade" />
           <button
             type="button"
@@ -166,10 +205,23 @@ function RecommendationCard({
               {saved ? t.unsaveAria(title ?? "") : t.saveAria(title ?? "")}
             </span>
           </button>
+          {hasPreview ? (
+            <button
+              type="button"
+              className="preview-toggle"
+              aria-pressed={showPreview}
+              onClick={() => setShowPreview((value) => !value)}
+              title={t.previewLabel}
+            >
+              <span aria-hidden="true">▶</span>
+              <span className="visually-hidden">{t.previewLabel}</span>
+            </button>
+          ) : null}
           <div className="cover-meta">
             <span>{format}</span>
             {media.averageScore ? (
-              <span>
+              <span title={t.scoreTitle(media.averageScore)}>
+                <span aria-hidden="true">★ </span>
                 <span className="visually-hidden">{t.ratingLabel}</span>
                 {media.averageScore}/100
               </span>
@@ -181,10 +233,10 @@ function RecommendationCard({
           <div className="card-kicker">
             <span>
               {kickerLabel ??
-                (mode === "SURPRISE" ? t.kickerSurprise : t.kickerHidden)}{" "}
-              {String(index + 1).padStart(2, "0")}
+                (mode === "SURPRISE" ? t.kickerSurprise : t.kickerHidden)}
             </span>
             <span>
+              {unit ? `${unit} · ` : ""}
               {compactNumber(media.popularity, t)} {t.lists}
             </span>
           </div>
