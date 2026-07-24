@@ -1,6 +1,7 @@
 export type Scope = "ALL" | "ANIME" | "MANHWA";
 export type AniListMediaType = "ANIME" | "MANGA";
 export type DiscoveryMode = "HIDDEN" | "SURPRISE";
+export type Lang = "de" | "en";
 export type GenreKey =
   | "Action"
   | "Adventure"
@@ -83,6 +84,26 @@ export type DiscoveryRequest = {
   batch: number;
   excludeKeys?: ReadonlySet<string>;
   signal: AbortSignal;
+  lang?: Lang;
+};
+
+const NETWORK_MESSAGES: Record<Lang, { rateLimit: string; offline: string; rejected: string }> = {
+  de: {
+    rateLimit:
+      "AniList bekommt gerade sehr viele Anfragen. Gönn dem Regal einen kurzen Moment und versuche es gleich noch einmal.",
+    offline:
+      "Die Geschichten konnten gerade nicht aus dem Archiv geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.",
+    rejected:
+      "Das Anime-Archiv hat die Geheimtipp-Suche abgelehnt. Bitte ändere deine Auswahl und probiere es erneut.",
+  },
+  en: {
+    rateLimit:
+      "AniList is getting a lot of requests right now. Give the shelf a short moment and try again in a bit.",
+    offline:
+      "The stories couldn't be loaded from the archive just now. Please check your connection and try again.",
+    rejected:
+      "The anime archive turned down the search. Please change your selection and try again.",
+  },
 };
 
 export type DiscoveryBatch = {
@@ -281,7 +302,9 @@ async function queryAniList(
   mode: DiscoveryMode,
   page: number,
   signal: AbortSignal,
+  lang: Lang,
 ) {
+  const messages = NETWORK_MESSAGES[lang];
   const profile = profileFor(spec.target.type, mode);
   const response = await fetch("https://graphql.anilist.co", {
     method: "POST",
@@ -309,22 +332,16 @@ async function queryAniList(
   });
 
   if (response.status === 429) {
-    throw new Error(
-      "AniList bekommt gerade sehr viele Anfragen. Gönn dem Regal einen kurzen Moment und versuche es gleich noch einmal.",
-    );
+    throw new Error(messages.rateLimit);
   }
 
   if (!response.ok) {
-    throw new Error(
-      "Die Geschichten konnten gerade nicht aus dem Archiv geladen werden. Bitte prüfe deine Verbindung und versuche es erneut.",
-    );
+    throw new Error(messages.offline);
   }
 
   const payload = (await response.json()) as AniListPayload;
   if (payload.errors?.length) {
-    throw new Error(
-      "Das Anime-Archiv hat die Geheimtipp-Suche abgelehnt. Bitte ändere deine Auswahl und probiere es erneut.",
-    );
+    throw new Error(messages.rejected);
   }
 
   const items = (payload.data?.Page?.media ?? []).filter(
@@ -337,7 +354,7 @@ async function queryAniList(
   // Seiten für den Zufallssprung. Dann bleibt die Nischenfilterung bestehen,
   // aber wir greifen auf die bestbewertete erste Seite zurück.
   if (!items.length && page > 1) {
-    return queryAniList(spec, mode, 1, signal);
+    return queryAniList(spec, mode, 1, signal, lang);
   }
 
   return items;
@@ -395,6 +412,7 @@ export async function discoverStories({
   batch,
   excludeKeys = new Set<string>(),
   signal,
+  lang = "de",
 }: DiscoveryRequest): Promise<DiscoveryBatch> {
   const specs = querySpecsFor(scope, selected, mode);
   const responses = await Promise.all(
@@ -404,6 +422,7 @@ export async function discoverStories({
         mode,
         pageFor(seed, batch, index, spec.maxPage),
         signal,
+        lang,
       ),
     ),
   );

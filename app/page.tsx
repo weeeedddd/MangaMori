@@ -8,52 +8,38 @@ import {
   reasonsFor,
   type DiscoveryMode,
   type GenreKey,
+  type Lang,
   type Media,
   type Scope,
 } from "./discovery";
+import { genreDisplay, translations, type Translations } from "./i18n";
 
-const GENRES: Array<{
-  key: GenreKey;
-  label: string;
-  hint: string;
-}> = [
-  { key: "Action", label: "Action", hint: "Tempo & Kämpfe" },
-  { key: "Adventure", label: "Abenteuer", hint: "Ferne Welten" },
-  { key: "Isekai", label: "Isekai", hint: "Neu geboren" },
-  { key: "Romance", label: "Romance", hint: "Herzklopfen" },
-  { key: "Slice of Life", label: "Slice of Life", hint: "Leise Momente" },
-  { key: "Fantasy", label: "Fantasy", hint: "Magie & Mythen" },
-  { key: "Mystery", label: "Mystery", hint: "Rätsel & Schatten" },
-  { key: "Comedy", label: "Comedy", hint: "Leicht & witzig" },
-  { key: "Drama", label: "Drama", hint: "Große Gefühle" },
-  { key: "Murim", label: "Murim", hint: "Clans & Kultivierung" },
-  { key: "Psychological", label: "Psychological", hint: "Abgründe im Kopf" },
-  { key: "Horror", label: "Horror", hint: "Grusel & Angst" },
-  { key: "Thriller", label: "Thriller", hint: "Nervenkitzel" },
-  { key: "Sci-Fi", label: "Sci-Fi", hint: "Zukunft & Technik" },
-  { key: "Supernatural", label: "Übernatürlich", hint: "Geister & Kräfte" },
-  { key: "Sports", label: "Sport", hint: "Ehrgeiz & Team" },
-  { key: "Mecha", label: "Mecha", hint: "Roboter & Stahl" },
+const GENRE_ORDER: GenreKey[] = [
+  "Action",
+  "Adventure",
+  "Isekai",
+  "Romance",
+  "Slice of Life",
+  "Fantasy",
+  "Mystery",
+  "Comedy",
+  "Drama",
+  "Murim",
+  "Psychological",
+  "Horror",
+  "Thriller",
+  "Sci-Fi",
+  "Supernatural",
+  "Sports",
+  "Mecha",
 ];
 
-const FORMAT_LABELS: Record<string, string> = {
-  TV: "TV-Serie",
-  TV_SHORT: "Kurzserie",
-  MOVIE: "Film",
-  SPECIAL: "Special",
-  OVA: "OVA",
-  ONA: "ONA",
-  MUSIC: "Musik",
-  MANGA: "Manhwa",
-  NOVEL: "Novel",
-  ONE_SHOT: "One Shot",
-};
-
 const SEEN_STORAGE_KEY = "mangamori-seen-stories";
+const LANG_STORAGE_KEY = "mangamori-lang";
 
-function plainText(value: string | null) {
+function plainText(value: string | null, t: Translations) {
   if (!value) {
-    return "Für diesen Titel ist derzeit noch keine Kurzbeschreibung verfügbar.";
+    return t.noSynopsis;
   }
 
   return value
@@ -89,12 +75,18 @@ function rememberStories(stories: Media[]) {
   );
 }
 
-function compactNumber(value: number | null) {
-  if (!value) return "Nische";
-  return new Intl.NumberFormat("de-DE", {
+function compactNumber(value: number | null, t: Translations) {
+  if (!value) return t.niche;
+  return new Intl.NumberFormat(t.localeCompact, {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+function formatLabel(media: Media, t: Translations) {
+  if (media.type === "MANGA") return t.manhwa;
+  const formats = t.formats as Record<string, string>;
+  return formats[media.format ?? ""] || media.format || t.anime;
 }
 
 function ScopeButton({
@@ -127,6 +119,8 @@ function RecommendationCard({
   saved,
   onToggleSave,
   kickerLabel,
+  lang,
+  t,
 }: {
   media: Media;
   index: number;
@@ -135,15 +129,15 @@ function RecommendationCard({
   saved: boolean;
   onToggleSave: () => void;
   kickerLabel?: string;
+  lang: Lang;
+  t: Translations;
 }) {
   const reasons = mode === "HIDDEN" ? reasonsFor(media, selected) : [];
   const title = media.title.english || media.title.romaji || media.title.native;
   const originalTitle = media.title.native || media.title.romaji || title;
   const cover = media.coverImage.extraLarge || media.coverImage.large || "";
-  const format =
-    media.type === "MANGA"
-      ? "Manhwa"
-      : FORMAT_LABELS[media.format ?? ""] || media.format || "Anime";
+  const format = formatLabel(media, t);
+  const tags = reasons.length ? reasons : media.genres.slice(0, 2);
 
   return (
     <article className="recommendation-frame" style={{ "--order": index } as React.CSSProperties}>
@@ -154,7 +148,7 @@ function RecommendationCard({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={cover}
-            alt={`Cover von ${title}`}
+            alt={t.coverAlt(title ?? "")}
             width="460"
             height="650"
             loading={index < 4 ? "eager" : "lazy"}
@@ -165,18 +159,18 @@ function RecommendationCard({
             className="fav-button"
             aria-pressed={saved}
             onClick={onToggleSave}
-            title={saved ? "Aus Merkliste entfernen" : "Merken"}
+            title={saved ? t.unsave : t.save}
           >
             <span aria-hidden="true">{saved ? "♥" : "♡"}</span>
             <span className="visually-hidden">
-              {saved ? `${title} aus Merkliste entfernen` : `${title} merken`}
+              {saved ? t.unsaveAria(title ?? "") : t.saveAria(title ?? "")}
             </span>
           </button>
           <div className="cover-meta">
             <span>{format}</span>
             {media.averageScore ? (
               <span>
-                <span className="visually-hidden">Bewertung </span>
+                <span className="visually-hidden">{t.ratingLabel}</span>
                 {media.averageScore}/100
               </span>
             ) : null}
@@ -186,28 +180,31 @@ function RecommendationCard({
         <div className="card-copy">
           <div className="card-kicker">
             <span>
-              {kickerLabel ?? (mode === "SURPRISE" ? "Zufallsfund" : "Geheimtipp")}{" "}
+              {kickerLabel ??
+                (mode === "SURPRISE" ? t.kickerSurprise : t.kickerHidden)}{" "}
               {String(index + 1).padStart(2, "0")}
             </span>
-            <span>{compactNumber(media.popularity)} Listen</span>
+            <span>
+              {compactNumber(media.popularity, t)} {t.lists}
+            </span>
           </div>
 
           <h3>{title}</h3>
           <p className="original-title" lang={media.type === "MANGA" ? "ko" : "ja"}>
-            Original: {originalTitle}
+            {t.original} {originalTitle}
           </p>
-          <p className="synopsis">{plainText(media.description)}</p>
+          <p className="synopsis">{plainText(media.description, t)}</p>
 
-          <div className="match-row" role="list" aria-label="Passende Vorlieben">
-            {(reasons.length ? reasons : media.genres.slice(0, 2)).map((reason) => (
+          <div className="match-row" role="list" aria-label={t.matchAria}>
+            {tags.map((reason) => (
               <span role="listitem" key={reason}>
-                {reason === "Adventure" ? "Abenteuer" : reason}
+                {genreDisplay(reason, lang)}
               </span>
             ))}
           </div>
 
           <a href={media.siteUrl} target="_blank" rel="noreferrer">
-            Auf AniList ansehen
+            {t.viewOnAniList}
             <span className="link-mark" aria-hidden="true">
               ↗
             </span>
@@ -236,6 +233,7 @@ function LoadingShelf() {
 }
 
 export default function Home() {
+  const [lang, setLang] = useState<Lang>("de");
   const [scope, setScope] = useState<Scope>("ALL");
   const [selected, setSelected] = useState<GenreKey[]>(["Fantasy", "Romance"]);
   const [results, setResults] = useState<Media[]>([]);
@@ -256,9 +254,27 @@ export default function Home() {
   const batchRef = useRef(0);
   const activeScopeRef = useRef<Scope>("ALL");
   const activeSelectionRef = useRef<GenreKey[]>([]);
+  const langRef = useRef<Lang>("de");
   const loading = loadingMode !== null;
   const initialLoading =
     loadingMode === "initial" || loadingMode === "surprise";
+  const t = translations[lang];
+
+  useEffect(() => {
+    langRef.current = lang;
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = lang;
+    }
+  }, [lang]);
+
+  useEffect(() => {
+    const restoreLang = window.setTimeout(() => {
+      const stored = window.localStorage.getItem(LANG_STORAGE_KEY);
+      if (stored === "de" || stored === "en") setLang(stored);
+    }, 0);
+
+    return () => window.clearTimeout(restoreLang);
+  }, []);
 
   useEffect(() => {
     const restorePreferences = window.setTimeout(() => {
@@ -300,6 +316,11 @@ export default function Home() {
     return () => window.clearTimeout(restoreFavorites);
   }, []);
 
+  function changeLang(next: Lang) {
+    setLang(next);
+    window.localStorage.setItem(LANG_STORAGE_KEY, next);
+  }
+
   const favoriteKeys = useMemo(
     () => new Set(favorites.map(mediaKey)),
     [favorites],
@@ -327,11 +348,8 @@ export default function Home() {
   }
 
   const selectionSummary = useMemo(
-    () =>
-      selected
-        .map((key) => GENRES.find((genre) => genre.key === key)?.label ?? key)
-        .join(", "),
-    [selected],
+    () => selected.map((key) => t.genres[key].label).join(", "),
+    [selected, t],
   );
 
   function toggleGenre(key: GenreKey) {
@@ -357,9 +375,7 @@ export default function Home() {
         : selected;
 
     if (mode === "HIDDEN" && !discoveryGenres.length) {
-      setFormError(
-        "Wähle mindestens eine Stimmung, damit wir dein Regal füllen können.",
-      );
+      setFormError(t.formError);
       return;
     }
 
@@ -380,6 +396,7 @@ export default function Home() {
       setResultGenres(discoveryGenres);
       setResults([]);
       setHasMore(false);
+      setViewingFavorites(false);
 
       if (mode === "HIDDEN") {
         window.localStorage.setItem(
@@ -407,6 +424,7 @@ export default function Home() {
         batch: batchRef.current,
         excludeKeys: excludedKeys,
         signal: controller.signal,
+        lang: langRef.current,
       });
 
       // Falls ein Stammgast bereits sehr viele Titel gesehen hat, öffnen wir
@@ -419,6 +437,7 @@ export default function Home() {
           seed: seedRef.current,
           batch: batchRef.current,
           signal: controller.signal,
+          lang: langRef.current,
         });
       }
 
@@ -436,20 +455,12 @@ export default function Home() {
       setHasMore(batch.hasMore && batch.items.length > 0);
 
       if (!batch.items.length) {
-        setError(
-          append
-            ? "Für diese Richtung haben wir gerade keine weiteren unbekannten Titel gefunden."
-            : "Diese Mischung ist selten. Nimm eine Stimmung heraus oder öffne die Suche für Anime und Manhwa.",
-        );
+        setError(append ? t.errNoMore : t.errRare);
       }
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
       if (!append) setResults([]);
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Beim Öffnen des Archivs ist etwas schiefgegangen.",
-      );
+      setError(caught instanceof Error ? caught.message : t.errGeneric);
     } finally {
       if (controllerRef.current === controller) {
         setLoadingMode(null);
@@ -473,11 +484,11 @@ export default function Home() {
   return (
     <>
       <a className="skip-link" href="#genre-kompass">
-        Direkt zum Genre-Kompass
+        {t.skipLink}
       </a>
 
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="MangaMori Startseite">
+        <a className="brand" href="#top" aria-label={t.brandHome}>
           <span className="brand-mark" aria-hidden="true">
             MM
           </span>
@@ -486,28 +497,44 @@ export default function Home() {
             <small lang="ja">物語の森</small>
           </span>
         </a>
-        <nav aria-label="Hauptnavigation">
-          <a href="#genre-kompass">Kompass</a>
-          <a href="#empfehlungen">Dein Regal</a>
-          <a href="#ueber-uns">Über MangaMori</a>
-        </nav>
+        <div className="header-actions">
+          <nav aria-label={t.navMain}>
+            <a href="#genre-kompass">{t.navCompass}</a>
+            <a href="#empfehlungen">{t.navShelf}</a>
+            <a href="#ueber-uns">{t.navAbout}</a>
+          </nav>
+          <div className="lang-switch" role="group" aria-label={t.langToggleLabel}>
+            <button
+              type="button"
+              className="lang-button"
+              aria-pressed={lang === "de"}
+              onClick={() => changeLang("de")}
+            >
+              DE
+            </button>
+            <button
+              type="button"
+              className="lang-button"
+              aria-pressed={lang === "en"}
+              onClick={() => changeLang("en")}
+            >
+              EN
+            </button>
+          </div>
+        </div>
       </header>
 
       <main id="top">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow">Anime & Manhwa · persönlich entdeckt</p>
+            <p className="eyebrow">{t.heroEyebrow}</p>
             <h1 id="hero-title">
-              Dein nächstes
-              <span>Kapitel wartet.</span>
+              {t.heroTitleLead}
+              <span>{t.heroTitleAccent}</span>
             </h1>
-            <p className="hero-lede">
-              Sag uns, welche Welten dich fesseln. MangaMori öffnet dir ein
-              handverlesenes Regal mit echten Covern, Originaltiteln und
-              Geheimtipps jenseits der üblichen Bestseller.
-            </p>
+            <p className="hero-lede">{t.heroLede}</p>
             <a className="primary-link" href="#genre-kompass">
-              Genre-Kompass öffnen
+              {t.heroCta}
               <span aria-hidden="true">↓</span>
             </a>
           </div>
@@ -515,7 +542,7 @@ export default function Home() {
           <div className="hero-panels" aria-hidden="true">
             <div className="panel panel-quote">
               <span className="panel-number">01</span>
-              <p>Manche Geschichten finden uns genau im richtigen Moment.</p>
+              <p>{t.panelQuote}</p>
               <span className="brush-line" />
             </div>
             <div className="panel panel-japanese" lang="ja">
@@ -537,53 +564,51 @@ export default function Home() {
 
         <section className="compass-section" id="genre-kompass">
           <div className="section-heading">
-            <p className="eyebrow">Dein Genre-Kompass</p>
-            <h2>Welche Geschichte ruft nach dir?</h2>
-            <p>
-              Wähle mehrere Stimmungen. Je klarer dein Geschmack, desto besser
-              passt dein persönliches Regal.
-            </p>
+            <p className="eyebrow">{t.compassEyebrow}</p>
+            <h2>{t.compassTitle}</h2>
+            <p>{t.compassIntro}</p>
           </div>
 
           <form className="compass-frame" onSubmit={handleSubmit}>
             <div className="compass-inner">
               <fieldset className="scope-fieldset">
                 <legend>
-                  <span>01</span> Wo möchtest du lesen oder schauen?
+                  <span>01</span> {t.scopeLegend}
                 </legend>
                 <div className="scope-switch">
                   <ScopeButton active={scope === "ALL"} onClick={() => setScope("ALL")}>
-                    Beides
+                    {t.scopeBoth}
                   </ScopeButton>
                   <ScopeButton
                     active={scope === "ANIME"}
                     onClick={() => setScope("ANIME")}
                   >
-                    Anime
+                    {t.scopeAnime}
                   </ScopeButton>
                   <ScopeButton
                     active={scope === "MANHWA"}
                     onClick={() => setScope("MANHWA")}
                   >
-                    Manhwa
+                    {t.scopeManhwa}
                   </ScopeButton>
                 </div>
               </fieldset>
 
               <fieldset className="genre-fieldset">
                 <legend>
-                  <span>02</span> Was darf nicht fehlen?
+                  <span>02</span> {t.genreLegend}
                 </legend>
                 <div className="genre-grid">
-                  {GENRES.map((genre, index) => {
-                    const active = selected.includes(genre.key);
+                  {GENRE_ORDER.map((key, index) => {
+                    const active = selected.includes(key);
+                    const genre = t.genres[key];
                     return (
                       <button
                         type="button"
                         className="genre-button"
                         aria-pressed={active}
-                        onClick={() => toggleGenre(genre.key)}
-                        key={genre.key}
+                        onClick={() => toggleGenre(key)}
+                        key={key}
                       >
                         <span className="genre-index">
                           {String(index + 1).padStart(2, "0")}
@@ -602,10 +627,8 @@ export default function Home() {
               <div className="form-footer">
                 <p>
                   {selected.length
-                    ? `${selected.length} ${
-                        selected.length === 1 ? "Stimmung" : "Stimmungen"
-                      } gewählt: ${selectionSummary}`
-                    : "Noch keine Stimmung ausgewählt"}
+                    ? t.selectionSummary(selected.length, selectionSummary)
+                    : t.selectionNone}
                 </p>
                 <div className="action-cluster">
                   <button
@@ -615,9 +638,7 @@ export default function Home() {
                     onClick={handleSurprise}
                   >
                     <span>
-                      {loadingMode === "surprise"
-                        ? "Wir würfeln …"
-                        : "Überrasch mich"}
+                      {loadingMode === "surprise" ? t.surpriseLoading : t.surprise}
                     </span>
                     <span className="surprise-mark" aria-hidden="true">
                       {loadingMode === "surprise" ? "…" : "?"}
@@ -625,9 +646,7 @@ export default function Home() {
                   </button>
                   <button className="submit-button" type="submit" disabled={loading}>
                     <span>
-                      {loadingMode === "initial"
-                        ? "Geheimtipps werden gesucht …"
-                        : "Geheimtipps finden"}
+                      {loadingMode === "initial" ? t.submitLoading : t.submit}
                     </span>
                     <span className="button-mark" aria-hidden="true">
                       {loadingMode === "initial" ? "…" : "→"}
@@ -650,34 +669,34 @@ export default function Home() {
             <div>
               <p className="eyebrow">
                 {viewingFavorites
-                  ? "Deine Merkliste · lokal gespeichert"
+                  ? t.resultsEyebrowFav
                   : resultMode === "SURPRISE"
-                    ? "Dein persönliches Regal · außerhalb deiner Bubble"
-                    : "Dein persönliches Regal · Geheimtipps"}
+                    ? t.resultsEyebrowSurprise
+                    : t.resultsEyebrowHidden}
               </p>
               <h2 id="results-title">
                 {viewingFavorites
                   ? favorites.length
-                    ? `${favorites.length} Titel gemerkt`
-                    : "Deine Merkliste"
+                    ? t.favCountTitle(favorites.length)
+                    : t.favEmptyHeading
                   : initialLoading
                     ? loadingMode === "surprise"
-                      ? "Wir würfeln neue Welten …"
-                      : "Wir blättern abseits der Bestseller …"
+                      ? t.loadingSurprise
+                      : t.loadingHidden
                     : results.length
-                      ? `${results.length} ${
-                          resultMode === "SURPRISE" ? "Zufallsfunde" : "Geheimtipps"
-                        }`
-                      : "Bereit für deine Auswahl"}
+                      ? resultMode === "SURPRISE"
+                        ? t.countSurprise(results.length)
+                        : t.countHidden(results.length)
+                      : t.readyTitle}
               </h2>
-              <div className="view-switch" role="group" aria-label="Ansicht wechseln">
+              <div className="view-switch" role="group" aria-label={t.viewSwitchAria}>
                 <button
                   type="button"
                   className="view-button"
                   aria-pressed={!viewingFavorites}
                   onClick={() => setViewingFavorites(false)}
                 >
-                  Empfehlungen
+                  {t.viewRecommend}
                 </button>
                 <button
                   type="button"
@@ -685,25 +704,26 @@ export default function Home() {
                   aria-pressed={viewingFavorites}
                   onClick={() => setViewingFavorites(true)}
                 >
-                  Merkliste{favorites.length ? ` (${favorites.length})` : ""}
+                  {t.viewShelf}
+                  {favorites.length ? ` (${favorites.length})` : ""}
                 </button>
               </div>
             </div>
             <p className="api-note">
-              Live-Daten & echte Cover
+              {t.apiNote}
               <span>
-              {resultMode === "SURPRISE"
-                ? "73+ Punkte · genre-frei · zufällige AniList-Seiten"
-                : "69+ Punkte · Mainstream gefiltert · zufällige AniList-Seiten"}
+                {resultMode === "SURPRISE"
+                  ? t.apiDetailSurprise
+                  : t.apiDetailHidden}
               </span>
             </p>
           </div>
 
           <div className="results-status" aria-live="polite" aria-atomic="true">
-            {initialLoading ? "Neue Empfehlungen werden geladen." : null}
-            {loadingMode === "more" ? "Weitere Empfehlungen werden geladen." : null}
+            {initialLoading ? t.statusLoading : null}
+            {loadingMode === "more" ? t.statusMore : null}
             {!loading && !viewingFavorites && results.length
-              ? `${results.length} Empfehlungen wurden geladen.`
+              ? t.statusLoaded(results.length)
               : null}
           </div>
 
@@ -717,9 +737,11 @@ export default function Home() {
                     index={index}
                     selected={resultGenres}
                     mode="SURPRISE"
-                    kickerLabel="Gemerkt"
+                    kickerLabel={t.kickerSaved}
                     saved
                     onToggleSave={() => toggleFavorite(media)}
+                    lang={lang}
+                    t={t}
                   />
                 ))}
               </div>
@@ -729,13 +751,9 @@ export default function Home() {
                   ♡
                 </span>
                 <div>
-                  <p className="eyebrow">Merkliste ist leer</p>
-                  <h3>Noch nichts gemerkt.</h3>
-                  <p>
-                    Tippe bei einer Empfehlung auf das Herz, um sie hier zu
-                    sammeln. Deine Merkliste bleibt in diesem Browser
-                    gespeichert – auch nach dem Neuladen.
-                  </p>
+                  <p className="eyebrow">{t.favEmptyEyebrow}</p>
+                  <h3>{t.favEmptyHeading}</h3>
+                  <p>{t.favEmptyText}</p>
                 </div>
                 <div className="empty-lines" aria-hidden="true">
                   <span />
@@ -752,9 +770,9 @@ export default function Home() {
                 <div className="error-panel" role="alert">
                   <span className="error-number">!</span>
                   <div>
-                    <h3>Das Regal klemmt gerade</h3>
+                    <h3>{t.errorHeading}</h3>
                     <p>{error}</p>
-                    <a href="#genre-kompass">Auswahl anpassen</a>
+                    <a href="#genre-kompass">{t.errorAdjust}</a>
                   </div>
                 </div>
               ) : null}
@@ -771,25 +789,22 @@ export default function Home() {
                         mode={resultMode}
                         saved={favoriteKeys.has(mediaKey(media))}
                         onToggleSave={() => toggleFavorite(media)}
+                        lang={lang}
+                        t={t}
                       />
                     ))}
                   </div>
 
                   <div className="results-actions">
                     <div>
-                      <p className="eyebrow">Noch ein Kapitel?</p>
-                      <p>
-                        Bereits {results.length} einzigartige Titel im Regal. Wir
-                        merken uns, was du schon gesehen hast.
-                      </p>
+                      <p className="eyebrow">{t.moreEyebrow}</p>
+                      <p>{t.moreText(results.length)}</p>
                       <button
                         type="button"
                         className="reset-seen"
                         onClick={resetSeen}
                       >
-                        {seenReset
-                          ? "✓ Merkzettel geleert"
-                          : "Gesehene Titel zurücksetzen"}
+                        {seenReset ? t.resetSeenDone : t.resetSeen}
                       </button>
                     </div>
                     <button
@@ -800,10 +815,10 @@ export default function Home() {
                     >
                       <span>
                         {loadingMode === "more"
-                          ? "Weitere Seiten öffnen …"
+                          ? t.loadMoreOpening
                           : hasMore
-                            ? "Mehr laden"
-                            : "Regal ausgeschöpft"}
+                            ? t.loadMore
+                            : t.shelfExhausted}
                       </span>
                       <span className="button-mark" aria-hidden="true">
                         {loadingMode === "more" ? "…" : "↓"}
@@ -823,14 +838,9 @@ export default function Home() {
                 <div className="empty-shelf">
                   <span className="empty-number">00</span>
                   <div>
-                    <p className="eyebrow">Noch unbeschrieben</p>
-                    <h3>Dein Regal wartet auf eine Richtung.</h3>
-                    <p>
-                      Wähle oben deine Lieblingsgenres und öffne das Archiv.
-                      Deine unbekannteren Empfehlungen erscheinen hier als
-                      persönliche Manga-Panels – oder lass dich direkt
-                      überraschen.
-                    </p>
+                    <p className="eyebrow">{t.emptyEyebrow}</p>
+                    <h3>{t.emptyTitle}</h3>
+                    <p>{t.emptyText}</p>
                   </div>
                   <div className="empty-lines" aria-hidden="true">
                     <span />
@@ -844,20 +854,15 @@ export default function Home() {
         </section>
 
         <section className="about-section" id="ueber-uns">
-          <div className="about-index">余白</div>
+          <div className="about-index">{t.aboutId}</div>
           <div className="about-copy">
-            <p className="eyebrow">Warum MangaMori?</p>
-            <h2>Weniger scrollen. Mehr fühlen.</h2>
-            <p>
-              Keine erfundenen Titel, keine Platzhalter-Cover: MangaMori liest
-              deine Genre-Auswahl, filtert Mainstream aus AniList, prüft eine
-              Mindestbewertung und öffnet zufällige Archivseiten voller echter
-              Anime und koreanischer Manhwa.
-            </p>
+            <p className="eyebrow">{t.aboutEyebrow}</p>
+            <h2>{t.aboutTitle}</h2>
+            <p>{t.aboutText}</p>
           </div>
           <blockquote>
-            <p>„Die beste Empfehlung fühlt sich nicht wie ein Treffer an, sondern wie eine Einladung.“</p>
-            <footer>— Das Prinzip hinter deinem Regal</footer>
+            <p>{t.aboutQuote}</p>
+            <footer>{t.aboutQuoteFooter}</footer>
           </blockquote>
         </section>
       </main>
@@ -869,14 +874,11 @@ export default function Home() {
           </span>
           <span>
             <strong>MangaMori</strong>
-            <small>Dein nächstes Kapitel.</small>
+            <small>{t.footerTagline}</small>
           </span>
         </a>
-        <p>
-          Datenquelle: AniList. MangaMori ist ein unabhängiges
-          Empfehlungsprojekt.
-        </p>
-        <a href="#top">Zurück nach oben ↑</a>
+        <p>{t.footerNote}</p>
+        <a href="#top">{t.backToTop}</a>
       </footer>
     </>
   );
