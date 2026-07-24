@@ -161,7 +161,7 @@ const TAG_MAP: Partial<Record<GenreKey, string[]>> = {
   Historical: ["Historical"],
   Military: ["Military"],
   School: ["School", "School Club"],
-  Harem: ["Harem"],
+  Harem: ["Female Harem", "Male Harem", "Mixed Gender Harem"],
   Vampire: ["Vampire"],
   Magic: ["Magic"],
   "Super Power": ["Super Power"],
