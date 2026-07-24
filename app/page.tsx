@@ -27,6 +27,13 @@ const GENRES: Array<{
   { key: "Comedy", label: "Comedy", hint: "Leicht & witzig" },
   { key: "Drama", label: "Drama", hint: "Große Gefühle" },
   { key: "Murim", label: "Murim", hint: "Clans & Kultivierung" },
+  { key: "Psychological", label: "Psychological", hint: "Abgründe im Kopf" },
+  { key: "Horror", label: "Horror", hint: "Grusel & Angst" },
+  { key: "Thriller", label: "Thriller", hint: "Nervenkitzel" },
+  { key: "Sci-Fi", label: "Sci-Fi", hint: "Zukunft & Technik" },
+  { key: "Supernatural", label: "Übernatürlich", hint: "Geister & Kräfte" },
+  { key: "Sports", label: "Sport", hint: "Ehrgeiz & Team" },
+  { key: "Mecha", label: "Mecha", hint: "Roboter & Stahl" },
 ];
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -117,11 +124,17 @@ function RecommendationCard({
   index,
   selected,
   mode,
+  saved,
+  onToggleSave,
+  kickerLabel,
 }: {
   media: Media;
   index: number;
   selected: GenreKey[];
   mode: DiscoveryMode;
+  saved: boolean;
+  onToggleSave: () => void;
+  kickerLabel?: string;
 }) {
   const reasons = mode === "HIDDEN" ? reasonsFor(media, selected) : [];
   const title = media.title.english || media.title.romaji || media.title.native;
@@ -147,6 +160,18 @@ function RecommendationCard({
             loading={index < 4 ? "eager" : "lazy"}
           />
           <div className="cover-shade" />
+          <button
+            type="button"
+            className="fav-button"
+            aria-pressed={saved}
+            onClick={onToggleSave}
+            title={saved ? "Aus Merkliste entfernen" : "Merken"}
+          >
+            <span aria-hidden="true">{saved ? "♥" : "♡"}</span>
+            <span className="visually-hidden">
+              {saved ? `${title} aus Merkliste entfernen` : `${title} merken`}
+            </span>
+          </button>
           <div className="cover-meta">
             <span>{format}</span>
             {media.averageScore ? (
@@ -161,7 +186,7 @@ function RecommendationCard({
         <div className="card-copy">
           <div className="card-kicker">
             <span>
-              {mode === "SURPRISE" ? "Zufallsfund" : "Geheimtipp"}{" "}
+              {kickerLabel ?? (mode === "SURPRISE" ? "Zufallsfund" : "Geheimtipp")}{" "}
               {String(index + 1).padStart(2, "0")}
             </span>
             <span>{compactNumber(media.popularity)} Listen</span>
@@ -223,6 +248,9 @@ export default function Home() {
   const [formError, setFormError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [favorites, setFavorites] = useState<Media[]>([]);
+  const [viewingFavorites, setViewingFavorites] = useState(false);
+  const [seenReset, setSeenReset] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const seedRef = useRef(0);
   const batchRef = useRef(0);
@@ -255,6 +283,48 @@ export default function Home() {
   useEffect(() => {
     return () => controllerRef.current?.abort();
   }, []);
+
+  useEffect(() => {
+    const restoreFavorites = window.setTimeout(() => {
+      const saved = window.localStorage.getItem("mangamori-favorites");
+      if (!saved) return;
+
+      try {
+        const parsed = JSON.parse(saved) as unknown;
+        if (Array.isArray(parsed)) setFavorites(parsed as Media[]);
+      } catch {
+        window.localStorage.removeItem("mangamori-favorites");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(restoreFavorites);
+  }, []);
+
+  const favoriteKeys = useMemo(
+    () => new Set(favorites.map(mediaKey)),
+    [favorites],
+  );
+
+  function toggleFavorite(media: Media) {
+    setFavorites((current) => {
+      const key = mediaKey(media);
+      const next = current.some((item) => mediaKey(item) === key)
+        ? current.filter((item) => mediaKey(item) !== key)
+        : [media, ...current];
+      const trimmed = next.slice(0, 300);
+      window.localStorage.setItem(
+        "mangamori-favorites",
+        JSON.stringify(trimmed),
+      );
+      return trimmed;
+    });
+  }
+
+  function resetSeen() {
+    window.localStorage.removeItem(SEEN_STORAGE_KEY);
+    setSeenReset(true);
+    window.setTimeout(() => setSeenReset(false), 4000);
+  }
 
   const selectionSummary = useMemo(
     () =>
@@ -579,21 +649,45 @@ export default function Home() {
           <div className="results-heading">
             <div>
               <p className="eyebrow">
-                {resultMode === "SURPRISE"
-                  ? "Dein persönliches Regal · außerhalb deiner Bubble"
-                  : "Dein persönliches Regal · Geheimtipps"}
+                {viewingFavorites
+                  ? "Deine Merkliste · lokal gespeichert"
+                  : resultMode === "SURPRISE"
+                    ? "Dein persönliches Regal · außerhalb deiner Bubble"
+                    : "Dein persönliches Regal · Geheimtipps"}
               </p>
               <h2 id="results-title">
-                {initialLoading
-                  ? loadingMode === "surprise"
-                    ? "Wir würfeln neue Welten …"
-                    : "Wir blättern abseits der Bestseller …"
-                  : results.length
-                    ? `${results.length} ${
-                        resultMode === "SURPRISE" ? "Zufallsfunde" : "Geheimtipps"
-                      }`
-                    : "Bereit für deine Auswahl"}
+                {viewingFavorites
+                  ? favorites.length
+                    ? `${favorites.length} Titel gemerkt`
+                    : "Deine Merkliste"
+                  : initialLoading
+                    ? loadingMode === "surprise"
+                      ? "Wir würfeln neue Welten …"
+                      : "Wir blättern abseits der Bestseller …"
+                    : results.length
+                      ? `${results.length} ${
+                          resultMode === "SURPRISE" ? "Zufallsfunde" : "Geheimtipps"
+                        }`
+                      : "Bereit für deine Auswahl"}
               </h2>
+              <div className="view-switch" role="group" aria-label="Ansicht wechseln">
+                <button
+                  type="button"
+                  className="view-button"
+                  aria-pressed={!viewingFavorites}
+                  onClick={() => setViewingFavorites(false)}
+                >
+                  Empfehlungen
+                </button>
+                <button
+                  type="button"
+                  className="view-button"
+                  aria-pressed={viewingFavorites}
+                  onClick={() => setViewingFavorites(true)}
+                >
+                  Merkliste{favorites.length ? ` (${favorites.length})` : ""}
+                </button>
+              </div>
             </div>
             <p className="api-note">
               Live-Daten & echte Cover
@@ -608,92 +702,145 @@ export default function Home() {
           <div className="results-status" aria-live="polite" aria-atomic="true">
             {initialLoading ? "Neue Empfehlungen werden geladen." : null}
             {loadingMode === "more" ? "Weitere Empfehlungen werden geladen." : null}
-            {!loading && results.length
+            {!loading && !viewingFavorites && results.length
               ? `${results.length} Empfehlungen wurden geladen.`
               : null}
           </div>
 
-          {initialLoading ? <LoadingShelf /> : null}
-
-          {!initialLoading && error && hasSearched && !results.length ? (
-            <div className="error-panel" role="alert">
-              <span className="error-number">!</span>
-              <div>
-                <h3>Das Regal klemmt gerade</h3>
-                <p>{error}</p>
-                <a href="#genre-kompass">Auswahl anpassen</a>
-              </div>
-            </div>
-          ) : null}
-
-          {!initialLoading && results.length ? (
-            <>
+          {viewingFavorites ? (
+            favorites.length ? (
               <div className="results-grid">
-                {results.map((media, index) => (
+                {favorites.map((media, index) => (
                   <RecommendationCard
                     key={mediaKey(media)}
                     media={media}
                     index={index}
                     selected={resultGenres}
-                    mode={resultMode}
+                    mode="SURPRISE"
+                    kickerLabel="Gemerkt"
+                    saved
+                    onToggleSave={() => toggleFavorite(media)}
                   />
                 ))}
               </div>
-
-              <div className="results-actions">
+            ) : (
+              <div className="empty-shelf">
+                <span className="empty-number" aria-hidden="true">
+                  ♡
+                </span>
                 <div>
-                  <p className="eyebrow">Noch ein Kapitel?</p>
+                  <p className="eyebrow">Merkliste ist leer</p>
+                  <h3>Noch nichts gemerkt.</h3>
                   <p>
-                    Bereits {results.length} einzigartige Titel im Regal. Wir
-                    merken uns, was du schon gesehen hast.
+                    Tippe bei einer Empfehlung auf das Herz, um sie hier zu
+                    sammeln. Deine Merkliste bleibt in diesem Browser
+                    gespeichert – auch nach dem Neuladen.
                   </p>
                 </div>
-                <button
-                  className="load-more-button"
-                  type="button"
-                  onClick={handleLoadMore}
-                  disabled={loading || !hasMore}
-                >
-                  <span>
-                    {loadingMode === "more"
-                      ? "Weitere Seiten öffnen …"
-                      : hasMore
-                        ? "Mehr laden"
-                        : "Regal ausgeschöpft"}
-                  </span>
-                  <span className="button-mark" aria-hidden="true">
-                    {loadingMode === "more" ? "…" : "↓"}
-                  </span>
-                </button>
+                <div className="empty-lines" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
+            )
+          ) : (
+            <>
+              {initialLoading ? <LoadingShelf /> : null}
 
-              {error ? (
-                <p className="load-more-error" role="alert">
-                  {error}
-                </p>
+              {!initialLoading && error && hasSearched && !results.length ? (
+                <div className="error-panel" role="alert">
+                  <span className="error-number">!</span>
+                  <div>
+                    <h3>Das Regal klemmt gerade</h3>
+                    <p>{error}</p>
+                    <a href="#genre-kompass">Auswahl anpassen</a>
+                  </div>
+                </div>
+              ) : null}
+
+              {!initialLoading && results.length ? (
+                <>
+                  <div className="results-grid">
+                    {results.map((media, index) => (
+                      <RecommendationCard
+                        key={mediaKey(media)}
+                        media={media}
+                        index={index}
+                        selected={resultGenres}
+                        mode={resultMode}
+                        saved={favoriteKeys.has(mediaKey(media))}
+                        onToggleSave={() => toggleFavorite(media)}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="results-actions">
+                    <div>
+                      <p className="eyebrow">Noch ein Kapitel?</p>
+                      <p>
+                        Bereits {results.length} einzigartige Titel im Regal. Wir
+                        merken uns, was du schon gesehen hast.
+                      </p>
+                      <button
+                        type="button"
+                        className="reset-seen"
+                        onClick={resetSeen}
+                      >
+                        {seenReset
+                          ? "✓ Merkzettel geleert"
+                          : "Gesehene Titel zurücksetzen"}
+                      </button>
+                    </div>
+                    <button
+                      className="load-more-button"
+                      type="button"
+                      onClick={handleLoadMore}
+                      disabled={loading || !hasMore}
+                    >
+                      <span>
+                        {loadingMode === "more"
+                          ? "Weitere Seiten öffnen …"
+                          : hasMore
+                            ? "Mehr laden"
+                            : "Regal ausgeschöpft"}
+                      </span>
+                      <span className="button-mark" aria-hidden="true">
+                        {loadingMode === "more" ? "…" : "↓"}
+                      </span>
+                    </button>
+                  </div>
+
+                  {error ? (
+                    <p className="load-more-error" role="alert">
+                      {error}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
+
+              {!loading && !error && !results.length ? (
+                <div className="empty-shelf">
+                  <span className="empty-number">00</span>
+                  <div>
+                    <p className="eyebrow">Noch unbeschrieben</p>
+                    <h3>Dein Regal wartet auf eine Richtung.</h3>
+                    <p>
+                      Wähle oben deine Lieblingsgenres und öffne das Archiv.
+                      Deine unbekannteren Empfehlungen erscheinen hier als
+                      persönliche Manga-Panels – oder lass dich direkt
+                      überraschen.
+                    </p>
+                  </div>
+                  <div className="empty-lines" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                </div>
               ) : null}
             </>
-          ) : null}
-
-          {!loading && !error && !results.length ? (
-            <div className="empty-shelf">
-              <span className="empty-number">00</span>
-              <div>
-                <p className="eyebrow">Noch unbeschrieben</p>
-                <h3>Dein Regal wartet auf eine Richtung.</h3>
-                <p>
-                  Wähle oben deine Lieblingsgenres und öffne das Archiv. Deine
-                  unbekannteren Empfehlungen erscheinen hier als persönliche
-                  Manga-Panels – oder lass dich direkt überraschen.
-                </p>
-              </div>
-              <div className="empty-lines" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-            </div>
-          ) : null}
+          )}
         </section>
 
         <section className="about-section" id="ueber-uns">

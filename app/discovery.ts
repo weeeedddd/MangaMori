@@ -11,7 +11,14 @@ export type GenreKey =
   | "Mystery"
   | "Comedy"
   | "Drama"
-  | "Murim";
+  | "Murim"
+  | "Psychological"
+  | "Horror"
+  | "Thriller"
+  | "Sci-Fi"
+  | "Supernatural"
+  | "Sports"
+  | "Mecha";
 
 export type Media = {
   id: number;
@@ -96,6 +103,13 @@ const GENRE_MAP: Partial<Record<GenreKey, string>> = {
   Mystery: "Mystery",
   Comedy: "Comedy",
   Drama: "Drama",
+  Psychological: "Psychological",
+  Horror: "Horror",
+  Thriller: "Thriller",
+  "Sci-Fi": "Sci-Fi",
+  Supernatural: "Supernatural",
+  Sports: "Sports",
+  Mecha: "Mecha",
 };
 
 const TAG_MAP: Partial<Record<GenreKey, string[]>> = {
