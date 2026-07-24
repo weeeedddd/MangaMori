@@ -144,6 +144,7 @@ function RecommendationCard({
   lang: Lang;
   t: Translations;
 }) {
+  const [showPreview, setShowPreview] = useState(false);
   const reasons = mode === "HIDDEN" ? reasonsFor(media, selected) : [];
   const title = media.title.english || media.title.romaji || media.title.native;
   const originalTitle = media.title.native || media.title.romaji || title;
@@ -158,11 +159,17 @@ function RecommendationCard({
       : media.episodes
         ? t.episodesLabel(media.episodes)
         : "";
+  const trailerId = media.trailer?.site === "youtube" ? media.trailer.id : null;
+  const hasPreview = Boolean(trailerId || media.bannerImage);
 
   return (
     <article className="recommendation-frame" style={{ "--order": index } as React.CSSProperties}>
       <div className="recommendation-card">
-        <div className="cover-wrap">
+        <div
+          className="cover-wrap"
+          onMouseEnter={hasPreview ? () => setShowPreview(true) : undefined}
+          onMouseLeave={hasPreview ? () => setShowPreview(false) : undefined}
+        >
           {/* AniList liefert die Cover-URL erst zur Laufzeit; das native Bild
               funktioniert identisch im Worker- und im statischen Pages-Build. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -173,6 +180,18 @@ function RecommendationCard({
             height="650"
             loading={index < 4 ? "eager" : "lazy"}
           />
+          {showPreview && trailerId ? (
+            <iframe
+              className="cover-preview"
+              src={`https://www.youtube-nocookie.com/embed/${trailerId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${trailerId}&modestbranding=1&rel=0&playsinline=1`}
+              title={t.trailerTitle(title ?? "")}
+              allow="autoplay; encrypted-media"
+              loading="lazy"
+            />
+          ) : showPreview && media.bannerImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="cover-preview" src={media.bannerImage} alt="" />
+          ) : null}
           <div className="cover-shade" />
           <button
             type="button"
@@ -186,6 +205,18 @@ function RecommendationCard({
               {saved ? t.unsaveAria(title ?? "") : t.saveAria(title ?? "")}
             </span>
           </button>
+          {hasPreview ? (
+            <button
+              type="button"
+              className="preview-toggle"
+              aria-pressed={showPreview}
+              onClick={() => setShowPreview((value) => !value)}
+              title={t.previewLabel}
+            >
+              <span aria-hidden="true">▶</span>
+              <span className="visually-hidden">{t.previewLabel}</span>
+            </button>
+          ) : null}
           <div className="cover-meta">
             <span>{format}</span>
             {media.averageScore ? (
@@ -202,8 +233,7 @@ function RecommendationCard({
           <div className="card-kicker">
             <span>
               {kickerLabel ??
-                (mode === "SURPRISE" ? t.kickerSurprise : t.kickerHidden)}{" "}
-              {String(index + 1).padStart(2, "0")}
+                (mode === "SURPRISE" ? t.kickerSurprise : t.kickerHidden)}
             </span>
             <span>
               {unit ? `${unit} · ` : ""}

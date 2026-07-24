@@ -102,6 +102,8 @@ export type Translations = {
   episodesLabel: (count: number) => string;
   chaptersLabel: (count: number) => string;
   scoreTitle: (score: number) => string;
+  previewLabel: string;
+  trailerTitle: (title: string) => string;
   original: string;
   noSynopsis: string;
   save: string;
@@ -226,6 +228,8 @@ export const translations: Record<Lang, Translations> = {
     episodesLabel: (count) => `${count} ${count === 1 ? "Folge" : "Folgen"}`,
     chaptersLabel: (count) => `${count} ${count === 1 ? "Kapitel" : "Kapitel"}`,
     scoreTitle: (score) => `AniList-Bewertung: ${score}/100`,
+    previewLabel: "Vorschau",
+    trailerTitle: (title) => `Trailer: ${title}`,
     original: "Original:",
     noSynopsis:
       "Für diesen Titel ist derzeit noch keine Kurzbeschreibung verfügbar.",
@@ -392,6 +396,8 @@ export const translations: Record<Lang, Translations> = {
     episodesLabel: (count) => `${count} ${count === 1 ? "episode" : "episodes"}`,
     chaptersLabel: (count) => `${count} ${count === 1 ? "chapter" : "chapters"}`,
     scoreTitle: (score) => `AniList score: ${score}/100`,
+    previewLabel: "Preview",
+    trailerTitle: (title) => `Trailer: ${title}`,
     original: "Original:",
     noSynopsis: "There's no short description available for this title yet.",
     save: "Save",

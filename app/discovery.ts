@@ -57,6 +57,12 @@ export type Media = {
   siteUrl: string;
   seasonYear: number | null;
   status: string | null;
+  bannerImage: string | null;
+  trailer: {
+    id: string | null;
+    site: string | null;
+    thumbnail: string | null;
+  } | null;
 };
 
 type QueryTarget = {
@@ -243,6 +249,12 @@ const ANILIST_QUERY = `
         siteUrl
         seasonYear
         status
+        bannerImage
+        trailer {
+          id
+          site
+          thumbnail
+        }
       }
     }
   }
