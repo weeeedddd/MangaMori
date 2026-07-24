@@ -150,6 +150,14 @@ function RecommendationCard({
   const cover = media.coverImage.extraLarge || media.coverImage.large || "";
   const format = formatLabel(media, t);
   const tags = reasons.length ? reasons : media.genres.slice(0, 2);
+  const unit =
+    media.type === "MANGA"
+      ? media.chapters
+        ? t.chaptersLabel(media.chapters)
+        : ""
+      : media.episodes
+        ? t.episodesLabel(media.episodes)
+        : "";
 
   return (
     <article className="recommendation-frame" style={{ "--order": index } as React.CSSProperties}>
@@ -181,7 +189,8 @@ function RecommendationCard({
           <div className="cover-meta">
             <span>{format}</span>
             {media.averageScore ? (
-              <span>
+              <span title={t.scoreTitle(media.averageScore)}>
+                <span aria-hidden="true">★ </span>
                 <span className="visually-hidden">{t.ratingLabel}</span>
                 {media.averageScore}/100
               </span>
@@ -197,6 +206,7 @@ function RecommendationCard({
               {String(index + 1).padStart(2, "0")}
             </span>
             <span>
+              {unit ? `${unit} · ` : ""}
               {compactNumber(media.popularity, t)} {t.lists}
             </span>
           </div>

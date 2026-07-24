@@ -50,6 +50,8 @@ export type Media = {
   format: string | null;
   averageScore: number | null;
   popularity: number | null;
+  episodes: number | null;
+  chapters: number | null;
   genres: string[];
   tags: Array<{ name: string; rank: number }>;
   siteUrl: string;
@@ -231,6 +233,8 @@ const ANILIST_QUERY = `
         format
         averageScore
         popularity
+        episodes
+        chapters
         genres
         tags {
           name

@@ -99,6 +99,9 @@ export type Translations = {
   kickerSaved: string;
   lists: string;
   niche: string;
+  episodesLabel: (count: number) => string;
+  chaptersLabel: (count: number) => string;
+  scoreTitle: (score: number) => string;
   original: string;
   noSynopsis: string;
   save: string;
@@ -220,6 +223,9 @@ export const translations: Record<Lang, Translations> = {
     kickerSaved: "Gemerkt",
     lists: "Listen",
     niche: "Nische",
+    episodesLabel: (count) => `${count} ${count === 1 ? "Folge" : "Folgen"}`,
+    chaptersLabel: (count) => `${count} ${count === 1 ? "Kapitel" : "Kapitel"}`,
+    scoreTitle: (score) => `AniList-Bewertung: ${score}/100`,
     original: "Original:",
     noSynopsis:
       "Für diesen Titel ist derzeit noch keine Kurzbeschreibung verfügbar.",
@@ -383,6 +389,9 @@ export const translations: Record<Lang, Translations> = {
     kickerSaved: "Saved",
     lists: "lists",
     niche: "Niche",
+    episodesLabel: (count) => `${count} ${count === 1 ? "episode" : "episodes"}`,
+    chaptersLabel: (count) => `${count} ${count === 1 ? "chapter" : "chapters"}`,
+    scoreTitle: (score) => `AniList score: ${score}/100`,
     original: "Original:",
     noSynopsis: "There's no short description available for this title yet.",
     save: "Save",
