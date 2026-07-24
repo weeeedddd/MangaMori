@@ -277,6 +277,8 @@ export const translations: Record<Lang, Translations> = {
       Supernatural: { label: "Übernatürlich", hint: "Geister & Kräfte" },
       Sports: { label: "Sport", hint: "Ehrgeiz & Team" },
       Mecha: { label: "Mecha", hint: "Roboter & Stahl" },
+      "Mahou Shoujo": { label: "Magical Girl", hint: "Magische Mädchen" },
+      Music: { label: "Musik", hint: "Töne & Bühne" },
     },
   },
 
@@ -427,6 +429,8 @@ export const translations: Record<Lang, Translations> = {
       Supernatural: { label: "Supernatural", hint: "Ghosts & powers" },
       Sports: { label: "Sports", hint: "Ambition & team" },
       Mecha: { label: "Mecha", hint: "Robots & steel" },
+      "Mahou Shoujo": { label: "Magical Girl", hint: "Magical heroines" },
+      Music: { label: "Music", hint: "Sound & stage" },
     },
   },
 };

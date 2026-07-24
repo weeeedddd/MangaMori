@@ -19,7 +19,9 @@ export type GenreKey =
   | "Sci-Fi"
   | "Supernatural"
   | "Sports"
-  | "Mecha";
+  | "Mecha"
+  | "Mahou Shoujo"
+  | "Music";
 
 export type Media = {
   id: number;
@@ -131,6 +133,8 @@ const GENRE_MAP: Partial<Record<GenreKey, string>> = {
   Supernatural: "Supernatural",
   Sports: "Sports",
   Mecha: "Mecha",
+  "Mahou Shoujo": "Mahou Shoujo",
+  Music: "Music",
 };
 
 const TAG_MAP: Partial<Record<GenreKey, string[]>> = {

@@ -32,6 +32,8 @@ const GENRE_ORDER: GenreKey[] = [
   "Supernatural",
   "Sports",
   "Mecha",
+  "Mahou Shoujo",
+  "Music",
 ];
 
 const SEEN_STORAGE_KEY = "mangamori-seen-stories";
