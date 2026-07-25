@@ -13,7 +13,7 @@ import {
   type Scope,
 } from "./discovery";
 import { genreDisplay, translations, type Translations } from "./i18n";
-import { matchWebtoons } from "./webtoons";
+import { loadWebtoons, matchWebtoons, type Webtoon } from "./webtoons";
 
 const GENRE_ORDER: GenreKey[] = [
   "Action",
@@ -49,6 +49,7 @@ const GENRE_ORDER: GenreKey[] = [
 
 const SEEN_STORAGE_KEY = "mangamori-seen-stories";
 const LANG_STORAGE_KEY = "mangamori-lang";
+const WEBTOON_STEP = 12;
 
 function plainText(value: string | null, t: Translations) {
   if (!value) {
@@ -302,6 +303,8 @@ export default function Home() {
   const [favorites, setFavorites] = useState<Media[]>([]);
   const [viewingFavorites, setViewingFavorites] = useState(false);
   const [seenReset, setSeenReset] = useState(false);
+  const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
+  const [webtoonCount, setWebtoonCount] = useState(WEBTOON_STEP);
   const controllerRef = useRef<AbortController | null>(null);
   const seedRef = useRef(0);
   const batchRef = useRef(0);
@@ -351,6 +354,16 @@ export default function Home() {
 
   useEffect(() => {
     return () => controllerRef.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    loadWebtoons().then((entries) => {
+      if (active) setWebtoons(entries);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -405,7 +418,11 @@ export default function Home() {
     [selected, t],
   );
 
-  const webtoonMatches = useMemo(() => matchWebtoons(selected, 6), [selected]);
+  const webtoonMatches = useMemo(
+    () => matchWebtoons(webtoons, selected),
+    [webtoons, selected],
+  );
+  const visibleWebtoons = webtoonMatches.slice(0, webtoonCount);
 
   function toggleGenre(key: GenreKey) {
     setSelected((current) =>
@@ -415,6 +432,8 @@ export default function Home() {
     );
     setFormError(null);
     setError(null);
+    // A fresh selection means a fresh shelf, so start from the top again.
+    setWebtoonCount(WEBTOON_STEP);
   }
 
   async function runDiscovery(mode: DiscoveryMode, append: boolean) {
@@ -921,11 +940,11 @@ export default function Home() {
               <p>{t.webtoonIntro}</p>
             </div>
             <div className="results-grid">
-              {webtoonMatches.map((webtoon, index) => (
+              {visibleWebtoons.map((webtoon, index) => (
                 <RecommendationCard
                   key={mediaKey(webtoon)}
                   media={webtoon}
-                  index={index}
+                  index={index % WEBTOON_STEP}
                   selected={resultGenres}
                   mode="SURPRISE"
                   kickerLabel={t.webtoonKicker}
@@ -936,6 +955,35 @@ export default function Home() {
                 />
               ))}
             </div>
+
+            {webtoonMatches.length ? (
+              <div className="results-actions">
+                <div>
+                  <p className="eyebrow">{t.webtoonCountEyebrow}</p>
+                  <p>
+                    {t.webtoonCount(
+                      visibleWebtoons.length,
+                      webtoonMatches.length,
+                    )}
+                  </p>
+                </div>
+                {visibleWebtoons.length < webtoonMatches.length ? (
+                  <button
+                    className="load-more-button"
+                    type="button"
+                    onClick={() =>
+                      setWebtoonCount((count) => count + WEBTOON_STEP)
+                    }
+                  >
+                    <span>{t.loadMore}</span>
+                    <span className="button-mark" aria-hidden="true">
+                      ↓
+                    </span>
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             <p className="webtoon-note">{t.webtoonSource}</p>
           </section>
         ) : null}

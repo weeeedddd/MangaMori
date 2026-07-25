@@ -35,6 +35,8 @@ export type Translations = {
   webtoonIntro: string;
   webtoonKicker: string;
   webtoonSource: string;
+  webtoonCountEyebrow: string;
+  webtoonCount: (shown: number, total: number) => string;
 
   viewSwitchAria: string;
   matchAria: string;
@@ -159,6 +161,9 @@ export const translations: Record<Lang, Translations> = {
       "Handverlesene koreanische Manhwa, passend zu deiner Genre-Auswahl oben. Wähle Stimmungen im Kompass, und dieses Regal stellt sich neu zusammen.",
     webtoonKicker: "Webtoon",
     webtoonSource: "Quelle: MangaDex · beim Bauen der Seite aktualisiert",
+    webtoonCountEyebrow: "Noch lange nicht durch",
+    webtoonCount: (shown, total) =>
+      `${shown} von ${total} passenden Manhwa im Regal.`,
 
     viewSwitchAria: "Ansicht wechseln",
     matchAria: "Passende Vorlieben",
@@ -337,6 +342,9 @@ export const translations: Record<Lang, Translations> = {
       "Hand-picked Korean manhwa matching your genre picks above. Choose moods in the compass and this shelf rebuilds itself.",
     webtoonKicker: "Webtoon",
     webtoonSource: "Source: MangaDex · refreshed when the site is built",
+    webtoonCountEyebrow: "Nowhere near done",
+    webtoonCount: (shown, total) =>
+      `${shown} of ${total} matching manhwa on the shelf.`,
 
     viewSwitchAria: "Switch view",
     matchAria: "Matching tastes",
