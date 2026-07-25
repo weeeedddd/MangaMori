@@ -1467,6 +1467,21 @@ legend span {
   width: 47%;
 }
 
+.webtoon-section {
+  padding-top: clamp(88px, 11vw, 140px);
+  padding-bottom: clamp(100px, 13vw, 170px);
+  padding-right: max(24px, calc((100vw - var(--max-width)) / 2));
+  padding-left: max(24px, calc((100vw - var(--max-width)) / 2));
+  border-top: 1px solid var(--line-soft);
+}
+
+.webtoon-note {
+  margin: 38px 0 0;
+  color: var(--text-soft);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
 .about-section {
   display: grid;
   grid-template-columns: 0.36fr minmax(0, 0.85fr) minmax(300px, 0.65fr);

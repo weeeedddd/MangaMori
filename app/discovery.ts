@@ -34,8 +34,9 @@ export type GenreKey =
   | "Post-Apocalyptic";
 
 export type Media = {
-  id: number;
+  id: number | string;
   type: AniListMediaType;
+  source?: "anilist" | "mangadex";
   title: {
     romaji: string | null;
     english: string | null;

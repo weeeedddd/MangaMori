@@ -28,6 +28,13 @@ export type Translations = {
   navCompass: string;
   navShelf: string;
   navAbout: string;
+  navWebtoon: string;
+
+  webtoonEyebrow: string;
+  webtoonTitle: string;
+  webtoonIntro: string;
+  webtoonKicker: string;
+  webtoonSource: string;
 
   viewSwitchAria: string;
   matchAria: string;
@@ -144,6 +151,14 @@ export const translations: Record<Lang, Translations> = {
     navCompass: "Kompass",
     navShelf: "Dein Regal",
     navAbout: "Über MangaMori",
+    navWebtoon: "Webtoons",
+
+    webtoonEyebrow: "Webtoon-Regal · koreanische Manhwa",
+    webtoonTitle: "Frisch aus dem Webtoon-Archiv",
+    webtoonIntro:
+      "Handverlesene koreanische Manhwa, passend zu deiner Genre-Auswahl oben. Wähle Stimmungen im Kompass, und dieses Regal stellt sich neu zusammen.",
+    webtoonKicker: "Webtoon",
+    webtoonSource: "Quelle: MangaDex · beim Bauen der Seite aktualisiert",
 
     viewSwitchAria: "Ansicht wechseln",
     matchAria: "Passende Vorlieben",
@@ -314,6 +329,14 @@ export const translations: Record<Lang, Translations> = {
     navCompass: "Compass",
     navShelf: "Your shelf",
     navAbout: "About MangaMori",
+    navWebtoon: "Webtoons",
+
+    webtoonEyebrow: "Webtoon shelf · Korean manhwa",
+    webtoonTitle: "Fresh from the webtoon archive",
+    webtoonIntro:
+      "Hand-picked Korean manhwa matching your genre picks above. Choose moods in the compass and this shelf rebuilds itself.",
+    webtoonKicker: "Webtoon",
+    webtoonSource: "Source: MangaDex · refreshed when the site is built",
 
     viewSwitchAria: "Switch view",
     matchAria: "Matching tastes",
