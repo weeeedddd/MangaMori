@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "fetch:webtoons": "node scripts/fetch-webtoons.mjs",
+    "prebuild:pages": "node scripts/fetch-webtoons.mjs",
     "build:pages": "next build",
     "start": "vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",

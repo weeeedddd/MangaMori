@@ -34,8 +34,9 @@ export type GenreKey =
   | "Post-Apocalyptic";
 
 export type Media = {
-  id: number;
+  id: number | string;
   type: AniListMediaType;
+  source?: "anilist" | "mangadex";
   title: {
     romaji: string | null;
     english: string | null;
@@ -161,7 +162,7 @@ const TAG_MAP: Partial<Record<GenreKey, string[]>> = {
   Historical: ["Historical"],
   Military: ["Military"],
   School: ["School", "School Club"],
-  Harem: ["Harem"],
+  Harem: ["Female Harem", "Male Harem", "Mixed Gender Harem"],
   Vampire: ["Vampire"],
   Magic: ["Magic"],
   "Super Power": ["Super Power"],

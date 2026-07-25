@@ -13,6 +13,7 @@ import {
   type Scope,
 } from "./discovery";
 import { genreDisplay, translations, type Translations } from "./i18n";
+import { matchWebtoons } from "./webtoons";
 
 const GENRE_ORDER: GenreKey[] = [
   "Action",
@@ -404,6 +405,8 @@ export default function Home() {
     [selected, t],
   );
 
+  const webtoonMatches = useMemo(() => matchWebtoons(selected, 6), [selected]);
+
   function toggleGenre(key: GenreKey) {
     setSelected((current) =>
       current.includes(key)
@@ -553,6 +556,7 @@ export default function Home() {
           <nav aria-label={t.navMain}>
             <a href="#genre-kompass">{t.navCompass}</a>
             <a href="#empfehlungen">{t.navShelf}</a>
+            <a href="#webtoon-regal">{t.navWebtoon}</a>
             <a href="#ueber-uns">{t.navAbout}</a>
           </nav>
           <div className="lang-switch" role="group" aria-label={t.langToggleLabel}>
@@ -904,6 +908,37 @@ export default function Home() {
             </>
           )}
         </section>
+
+        {scope !== "ANIME" ? (
+          <section
+            className="webtoon-section"
+            id="webtoon-regal"
+            aria-labelledby="webtoon-title"
+          >
+            <div className="section-heading">
+              <p className="eyebrow">{t.webtoonEyebrow}</p>
+              <h2 id="webtoon-title">{t.webtoonTitle}</h2>
+              <p>{t.webtoonIntro}</p>
+            </div>
+            <div className="results-grid">
+              {webtoonMatches.map((webtoon, index) => (
+                <RecommendationCard
+                  key={mediaKey(webtoon)}
+                  media={webtoon}
+                  index={index}
+                  selected={resultGenres}
+                  mode="SURPRISE"
+                  kickerLabel={t.webtoonKicker}
+                  saved={favoriteKeys.has(mediaKey(webtoon))}
+                  onToggleSave={() => toggleFavorite(webtoon)}
+                  lang={lang}
+                  t={t}
+                />
+              ))}
+            </div>
+            <p className="webtoon-note">{t.webtoonSource}</p>
+          </section>
+        ) : null}
 
         <section className="about-section" id="ueber-uns">
           <div className="about-index">{t.aboutId}</div>
