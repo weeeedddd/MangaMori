@@ -1,21 +1,31 @@
-// Build-time fetch of curated Korean manhwa from the public MangaDex API.
+// Build-time fetch of Korean manhwa from the public MangaDex API.
 //
 // MangaDex does not send CORS headers, so the browser cannot call it directly
-// from the static GitHub Pages build. Instead we snapshot a curated set here
-// (at build/deploy time) into app/webtoons.json, which the app imports and
-// filters client-side. Run with: npm run fetch:webtoons
+// from the static GitHub Pages build. Instead we snapshot a large set here (at
+// build/deploy time) into public/webtoons.json, which the app fetches
+// same-origin on demand and filters client-side.
+//
+// Records are stored in a compact shape (short keys, cover file name only) so
+// the shelf can hold ~1000 titles without a heavy payload.
+// Run with: npm run fetch:webtoons
 //
 // The script never fails the build: on any network/parse error it keeps the
-// existing app/webtoons.json so deploys stay green even if MangaDex is down.
+// existing snapshot so deploys stay green even if MangaDex is down.
 
 import { writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const API = "https://api.mangadex.org";
-const UPLOADS = "https://uploads.mangadex.org";
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "app", "webtoons.json");
-const WANT = 48;
+const OUT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "public",
+  "webtoons.json",
+);
+const PAGES = 10;
+const PER_PAGE = 100;
+const UA = "MangaMori-build/1.0 (+https://github.com/weeeedddd/MangaMori)";
 
 // MangaDex tag name -> our GenreKey (mirrors GENRE_MAP / TAG_MAP in discovery.ts)
 const TAG_TO_MOOD = {
@@ -50,20 +60,18 @@ const TAG_TO_MOOD = {
   "Post-Apocalyptic": "Post-Apocalyptic",
 };
 
-const UA = "MangaMori-build/1.0 (+https://github.com/weeeedddd/MangaMori)";
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function getJson(url, attempt = 0) {
   try {
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       headers: { Accept: "application/json", "User-Agent": UA },
     });
-    if (res.status === 429 || res.status >= 500) {
-      throw new Error(`${res.status}`);
+    if (response.status === 429 || response.status >= 500) {
+      throw new Error(String(response.status));
     }
-    if (!res.ok) throw new Error(`${res.status} ${url}`);
-    return res.json();
+    if (!response.ok) throw new Error(`${response.status} ${url}`);
+    return response.json();
   } catch (error) {
     if (attempt < 4) {
       await sleep(1000 * 2 ** attempt);
@@ -75,20 +83,36 @@ async function getJson(url, attempt = 0) {
 
 function cleanDescription(text) {
   if (!text) return "";
-  return text
+  const cleaned = text
     .replace(/\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
     .replace(/[#*_>`~]/g, " ")
-    .replace(/\r?\n+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  if (cleaned.length <= 190) return cleaned;
+  return `${cleaned.slice(0, 187).replace(/\s+\S*$/, "")}…`;
 }
 
-async function main() {
+function englishTitle(attributes) {
+  if (attributes.title.en) return attributes.title.en;
+  const alt = (attributes.altTitles || []).find((entry) => entry.en);
+  if (alt) return alt.en;
+  return attributes.title["ko-ro"] || Object.values(attributes.title)[0] || null;
+}
+
+function chapterCount(attributes) {
+  const raw = attributes.lastChapter;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const parsed = Number.parseInt(String(raw).split(".")[0], 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function fetchManga() {
   const manga = [];
-  for (let page = 0; page < 3 && manga.length < WANT * 2; page += 1) {
+  for (let page = 0; page < PAGES; page += 1) {
     const params = new URLSearchParams();
-    params.set("limit", "60");
-    params.set("offset", String(page * 60));
+    params.set("limit", String(PER_PAGE));
+    params.set("offset", String(page * PER_PAGE));
     params.append("originalLanguage[]", "ko");
     params.append("contentRating[]", "safe");
     params.append("contentRating[]", "suggestive");
@@ -96,100 +120,98 @@ async function main() {
     params.set("hasAvailableChapters", "true");
     params.set("order[followedCount]", "desc");
     const data = await getJson(`${API}/manga?${params.toString()}`);
-    manga.push(...(data.data ?? []));
+    const batch = data.data ?? [];
+    manga.push(...batch);
+    if (batch.length < PER_PAGE) break;
+    await sleep(300);
   }
+  return manga;
+}
 
-  // Ratings via the statistics endpoint (batched).
-  const ids = manga.map((m) => m.id);
-  const stats = {};
-  for (let i = 0; i < ids.length; i += 90) {
-    const slice = ids.slice(i, i + 90);
+async function fetchStatistics(ids) {
+  const statistics = {};
+  for (let index = 0; index < ids.length; index += 80) {
     const params = new URLSearchParams();
-    slice.forEach((id) => params.append("manga[]", id));
+    ids.slice(index, index + 80).forEach((id) => params.append("manga[]", id));
     try {
       const data = await getJson(`${API}/statistics/manga?${params.toString()}`);
-      Object.assign(stats, data.statistics ?? {});
+      Object.assign(statistics, data.statistics ?? {});
     } catch {
-      // ratings are optional
+      // Ratings are a nice-to-have; a missing batch just means no score.
     }
+    await sleep(300);
   }
+  return statistics;
+}
+
+async function main() {
+  const manga = await fetchManga();
+  const statistics = await fetchStatistics(manga.map((entry) => entry.id));
 
   const seen = new Set();
   const webtoons = [];
-  for (const m of manga) {
-    const at = m.attributes;
-    const title =
-      at.title.en ||
-      (at.altTitles.find((t) => t.en) || {}).en ||
-      at.title["ko-ro"] ||
-      Object.values(at.title)[0];
-    if (!title || seen.has(title)) continue;
 
-    const cover = (m.relationships || []).find((r) => r.type === "cover_art");
+  for (const entry of manga) {
+    const attributes = entry.attributes;
+    const title = englishTitle(attributes);
+    if (!title) continue;
+
+    const key = title.toLowerCase().trim();
+    if (seen.has(key)) continue;
+
+    const cover = (entry.relationships || []).find(
+      (relation) => relation.type === "cover_art",
+    );
     const fileName = cover?.attributes?.fileName;
     if (!fileName) continue;
 
-    const tagNames = (at.tags || []).map((t) => t.attributes.name.en);
-    const genreNames = (at.tags || [])
-      .filter((t) => t.attributes.group === "genre")
-      .map((t) => t.attributes.name.en);
+    const tagNames = (attributes.tags || []).map(
+      (tag) => tag.attributes.name.en,
+    );
     const moods = [
-      ...new Set(tagNames.map((n) => TAG_TO_MOOD[n]).filter(Boolean)),
+      ...new Set(tagNames.map((name) => TAG_TO_MOOD[name]).filter(Boolean)),
     ];
+    // Without a mood the entry can never match a reader's genre picks.
+    if (!moods.length) continue;
 
-    const rating = stats[m.id]?.rating?.bayesian ?? stats[m.id]?.rating?.average;
-    const averageScore = rating ? Math.round(rating * 10) : null;
-    const chaptersRaw = at.lastChapter ? parseInt(at.lastChapter, 10) : NaN;
+    const genres = (attributes.tags || [])
+      .filter((tag) => tag.attributes.group === "genre")
+      .map((tag) => tag.attributes.name.en)
+      .slice(0, 3);
 
-    seen.add(title);
-    webtoons.push({
-      id: m.id,
-      type: "MANGA",
-      source: "mangadex",
-      title: {
-        english: at.title.en || null,
-        romaji: at.title["ko-ro"] || null,
-        native:
-          (at.altTitles.find((t) => t.ko) || {}).ko ||
-          at.title.ko ||
-          null,
-      },
-      coverImage: {
-        extraLarge: `${UPLOADS}/covers/${m.id}/${fileName}.512.jpg`,
-        large: `${UPLOADS}/covers/${m.id}/${fileName}.256.jpg`,
-        color: null,
-      },
-      description: cleanDescription(at.description?.en).slice(0, 320) || null,
-      format: null,
-      averageScore,
-      popularity: stats[m.id]?.follows ?? null,
-      episodes: null,
-      chapters: Number.isFinite(chaptersRaw) ? chaptersRaw : null,
-      genres: genreNames,
-      tags: tagNames.map((name) => ({ name, rank: 0 })),
-      siteUrl: `https://mangadex.org/title/${m.id}`,
-      seasonYear: at.year ?? null,
-      status: at.status ?? null,
-      bannerImage: null,
-      trailer: null,
-      moods,
-    });
-    if (webtoons.length >= WANT) break;
+    const rating = statistics[entry.id]?.rating;
+    const score = rating?.bayesian || rating?.average;
+    const follows = statistics[entry.id]?.follows;
+    const native =
+      (attributes.altTitles || []).find((alt) => alt.ko)?.ko ||
+      attributes.title.ko ||
+      null;
+    const description = cleanDescription(attributes.description?.en);
+    const chapters = chapterCount(attributes);
+
+    seen.add(key);
+    const record = { i: entry.id, t: title, c: fileName, m: moods };
+    if (native) record.n = native;
+    if (description) record.d = description;
+    if (score) record.s = Math.round(score * 10);
+    if (follows) record.p = follows;
+    if (chapters) record.ch = chapters;
+    if (genres.length) record.g = genres;
+    webtoons.push(record);
   }
 
   if (!webtoons.length) throw new Error("no webtoons fetched");
 
-  writeFileSync(OUT, `${JSON.stringify(webtoons, null, 2)}\n`);
-  console.log(`Wrote ${webtoons.length} webtoons to app/webtoons.json`);
+  writeFileSync(OUT, `${JSON.stringify(webtoons)}\n`);
+  console.log(`Wrote ${webtoons.length} webtoons to public/webtoons.json`);
 }
 
 main().catch((error) => {
   console.error(`fetch-webtoons failed: ${error.message}`);
   if (existsSync(OUT)) {
-    console.error("Keeping existing app/webtoons.json");
+    console.error("Keeping existing public/webtoons.json");
     process.exit(0);
   }
-  // No snapshot at all: still don't break the build, write an empty array.
   writeFileSync(OUT, "[]\n");
   process.exit(0);
 });
