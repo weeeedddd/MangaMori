@@ -1475,6 +1475,170 @@ legend span {
   border-top: 1px solid var(--line-soft);
 }
 
+.shelf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 34px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.shelf-search {
+  position: relative;
+  display: flex;
+  min-width: 260px;
+  flex: 1 1 300px;
+  align-items: center;
+}
+
+.shelf-search-mark {
+  position: absolute;
+  left: 16px;
+  color: var(--text-soft);
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.shelf-search input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 44px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(10, 6, 8, 0.5);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  transition:
+    border-color 220ms var(--ease-ink),
+    background-color 220ms var(--ease-ink);
+}
+
+.shelf-search input::placeholder {
+  color: var(--text-soft);
+}
+
+.shelf-search input:focus {
+  border-color: rgba(255, 157, 177, 0.5);
+  outline: none;
+  background: rgba(10, 6, 8, 0.75);
+}
+
+.shelf-search input:focus-visible {
+  outline: 2px solid var(--blossom);
+  outline-offset: 2px;
+}
+
+.shelf-search-clear {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 200ms var(--ease-ink);
+}
+
+.shelf-search-clear:hover {
+  background: rgba(255, 157, 177, 0.25);
+}
+
+.shelf-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.shelf-status {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shelf-chip {
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 220ms var(--ease-ink),
+    color 220ms var(--ease-ink);
+}
+
+.shelf-chip:hover {
+  color: var(--text);
+}
+
+.shelf-chip[aria-pressed="true"] {
+  background: linear-gradient(100deg, var(--red), var(--violet));
+  color: var(--white);
+  box-shadow: 0 6px 16px rgba(160, 123, 255, 0.28);
+}
+
+.shelf-sort select {
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(10, 6, 8, 0.5);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.shelf-sort select:focus-visible {
+  outline: 2px solid var(--blossom);
+  outline-offset: 2px;
+}
+
+.shelf-sort option {
+  background: var(--ink);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .shelf-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shelf-filters {
+    justify-content: space-between;
+  }
+
+  .shelf-status,
+  .shelf-sort,
+  .shelf-sort select {
+    width: 100%;
+  }
+
+  .shelf-chip {
+    flex: 1;
+  }
+}
+
 .webtoon-note {
   margin: 38px 0 0;
   color: var(--text-soft);

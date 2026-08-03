@@ -17,11 +17,27 @@ type CompactWebtoon = {
   p?: number;
   ch?: number;
   g?: string[];
+  st?: "c" | "o" | "h" | "x";
+  y?: number;
 };
 
-export type Webtoon = Media & { moods: GenreKey[] };
+export type WebtoonStatus = "completed" | "ongoing" | "hiatus" | "cancelled";
+export type StatusFilter = "ALL" | "COMPLETED" | "ONGOING";
+export type WebtoonSort = "SCORE" | "POPULAR" | "CHAPTERS" | "NEWEST";
+
+export type Webtoon = Media & {
+  moods: GenreKey[];
+  searchText: string;
+};
 
 const UPLOADS = "https://uploads.mangadex.org/covers";
+
+const STATUS_NAME: Record<string, WebtoonStatus> = {
+  c: "completed",
+  o: "ongoing",
+  h: "hiatus",
+  x: "cancelled",
+};
 
 let cache: Promise<Webtoon[]> | null = null;
 
@@ -49,11 +65,12 @@ function expand(record: CompactWebtoon): Webtoon {
     genres: record.g ?? [],
     tags: [],
     siteUrl: `https://mangadex.org/title/${record.i}`,
-    seasonYear: null,
-    status: null,
+    seasonYear: record.y ?? null,
+    status: record.st ? STATUS_NAME[record.st] : null,
     bannerImage: null,
     trailer: null,
     moods: record.m,
+    searchText: `${record.t} ${record.n ?? ""}`.toLowerCase(),
   };
 }
 
@@ -78,17 +95,45 @@ export function loadWebtoons(): Promise<Webtoon[]> {
   return cache;
 }
 
-export function matchWebtoons(webtoons: Webtoon[], selected: GenreKey[]) {
-  if (!selected.length) return webtoons;
+const SORTERS: Record<WebtoonSort, (a: Webtoon, b: Webtoon) => number> = {
+  SCORE: (a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0),
+  POPULAR: (a, b) => (b.popularity ?? 0) - (a.popularity ?? 0),
+  CHAPTERS: (a, b) => (b.chapters ?? 0) - (a.chapters ?? 0),
+  NEWEST: (a, b) => (b.seasonYear ?? 0) - (a.seasonYear ?? 0),
+};
 
-  const wanted = new Set(selected);
-  const ranked = webtoons
-    .map((webtoon) => ({
-      webtoon,
-      hits: webtoon.moods.filter((mood) => wanted.has(mood)).length,
-    }))
-    .filter((entry) => entry.hits > 0)
-    .sort((a, b) => b.hits - a.hits || (b.webtoon.averageScore ?? 0) - (a.webtoon.averageScore ?? 0));
+export type ShelfQuery = {
+  selected: GenreKey[];
+  search: string;
+  status: StatusFilter;
+  sort: WebtoonSort;
+};
 
-  return ranked.length ? ranked.map((entry) => entry.webtoon) : webtoons;
+export function queryWebtoons(webtoons: Webtoon[], query: ShelfQuery) {
+  const term = query.search.trim().toLowerCase();
+  const wanted = new Set(query.selected);
+
+  const filtered = webtoons.filter((webtoon) => {
+    if (term && !webtoon.searchText.includes(term)) return false;
+    if (query.status === "COMPLETED" && webtoon.status !== "completed") {
+      return false;
+    }
+    if (query.status === "ONGOING" && webtoon.status !== "ongoing") {
+      return false;
+    }
+    // A title search is an explicit request, so it wins over the mood picks.
+    if (!term && wanted.size) {
+      return webtoon.moods.some((mood) => wanted.has(mood));
+    }
+    return true;
+  });
+
+  const byMoodHits = (webtoon: Webtoon) =>
+    term || !wanted.size
+      ? 0
+      : webtoon.moods.filter((mood) => wanted.has(mood)).length;
+
+  return [...filtered].sort(
+    (a, b) => byMoodHits(b) - byMoodHits(a) || SORTERS[query.sort](a, b),
+  );
 }

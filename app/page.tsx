@@ -13,7 +13,13 @@ import {
   type Scope,
 } from "./discovery";
 import { genreDisplay, translations, type Translations } from "./i18n";
-import { loadWebtoons, matchWebtoons, type Webtoon } from "./webtoons";
+import {
+  loadWebtoons,
+  queryWebtoons,
+  type StatusFilter,
+  type Webtoon,
+  type WebtoonSort,
+} from "./webtoons";
 
 const GENRE_ORDER: GenreKey[] = [
   "Action",
@@ -305,6 +311,10 @@ export default function Home() {
   const [seenReset, setSeenReset] = useState(false);
   const [webtoons, setWebtoons] = useState<Webtoon[]>([]);
   const [webtoonCount, setWebtoonCount] = useState(WEBTOON_STEP);
+  const [webtoonSearch, setWebtoonSearch] = useState("");
+  const [webtoonStatus, setWebtoonStatus] = useState<StatusFilter>("ALL");
+  const [webtoonSort, setWebtoonSort] = useState<WebtoonSort>("SCORE");
+  const [webtoonsLoading, setWebtoonsLoading] = useState(true);
   const controllerRef = useRef<AbortController | null>(null);
   const seedRef = useRef(0);
   const batchRef = useRef(0);
@@ -359,7 +369,9 @@ export default function Home() {
   useEffect(() => {
     let active = true;
     loadWebtoons().then((entries) => {
-      if (active) setWebtoons(entries);
+      if (!active) return;
+      setWebtoons(entries);
+      setWebtoonsLoading(false);
     });
     return () => {
       active = false;
@@ -419,10 +431,24 @@ export default function Home() {
   );
 
   const webtoonMatches = useMemo(
-    () => matchWebtoons(webtoons, selected),
-    [webtoons, selected],
+    () =>
+      queryWebtoons(webtoons, {
+        selected,
+        search: webtoonSearch,
+        status: webtoonStatus,
+        sort: webtoonSort,
+      }),
+    [webtoons, selected, webtoonSearch, webtoonStatus, webtoonSort],
   );
   const visibleWebtoons = webtoonMatches.slice(0, webtoonCount);
+  const shelfFiltered =
+    Boolean(webtoonSearch.trim()) || webtoonStatus !== "ALL";
+
+  function resetShelf() {
+    setWebtoonSearch("");
+    setWebtoonStatus("ALL");
+    setWebtoonCount(WEBTOON_STEP);
+  }
 
   function toggleGenre(key: GenreKey) {
     setSelected((current) =>
@@ -939,22 +965,138 @@ export default function Home() {
               <h2 id="webtoon-title">{t.webtoonTitle}</h2>
               <p>{t.webtoonIntro}</p>
             </div>
-            <div className="results-grid">
-              {visibleWebtoons.map((webtoon, index) => (
-                <RecommendationCard
-                  key={mediaKey(webtoon)}
-                  media={webtoon}
-                  index={index % WEBTOON_STEP}
-                  selected={resultGenres}
-                  mode="SURPRISE"
-                  kickerLabel={t.webtoonKicker}
-                  saved={favoriteKeys.has(mediaKey(webtoon))}
-                  onToggleSave={() => toggleFavorite(webtoon)}
-                  lang={lang}
-                  t={t}
+            <div className="shelf-toolbar" role="group" aria-label={t.webtoonToolbarAria}>
+              <div className="shelf-search">
+                <label className="visually-hidden" htmlFor="webtoon-search">
+                  {t.searchLabel}
+                </label>
+                <span className="shelf-search-mark" aria-hidden="true">
+                  ⌕
+                </span>
+                <input
+                  id="webtoon-search"
+                  type="search"
+                  value={webtoonSearch}
+                  placeholder={t.searchPlaceholder}
+                  onChange={(event) => {
+                    setWebtoonSearch(event.target.value);
+                    setWebtoonCount(WEBTOON_STEP);
+                  }}
                 />
-              ))}
+                {webtoonSearch ? (
+                  <button
+                    type="button"
+                    className="shelf-search-clear"
+                    onClick={() => {
+                      setWebtoonSearch("");
+                      setWebtoonCount(WEBTOON_STEP);
+                    }}
+                    title={t.searchClear}
+                  >
+                    <span aria-hidden="true">×</span>
+                    <span className="visually-hidden">{t.searchClear}</span>
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="shelf-filters">
+                <div className="shelf-status" role="group" aria-label={t.statusLabel}>
+                  {(
+                    [
+                      ["ALL", t.statusAll],
+                      ["COMPLETED", t.statusCompleted],
+                      ["ONGOING", t.statusOngoing],
+                    ] as Array<[StatusFilter, string]>
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className="shelf-chip"
+                      aria-pressed={webtoonStatus === value}
+                      onClick={() => {
+                        setWebtoonStatus(value);
+                        setWebtoonCount(WEBTOON_STEP);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="shelf-sort">
+                  <label className="visually-hidden" htmlFor="webtoon-sort">
+                    {t.sortLabel}
+                  </label>
+                  <select
+                    id="webtoon-sort"
+                    value={webtoonSort}
+                    onChange={(event) => {
+                      setWebtoonSort(event.target.value as WebtoonSort);
+                      setWebtoonCount(WEBTOON_STEP);
+                    }}
+                  >
+                    <option value="SCORE">{t.sortScore}</option>
+                    <option value="POPULAR">{t.sortPopular}</option>
+                    <option value="CHAPTERS">{t.sortChapters}</option>
+                    <option value="NEWEST">{t.sortNewest}</option>
+                  </select>
+                </div>
+              </div>
             </div>
+
+            {webtoonsLoading ? (
+              <LoadingShelf />
+            ) : (
+              <div className="results-grid">
+                {visibleWebtoons.map((webtoon, index) => (
+                  <RecommendationCard
+                    key={mediaKey(webtoon)}
+                    media={webtoon}
+                    index={index % WEBTOON_STEP}
+                    selected={resultGenres}
+                    mode="SURPRISE"
+                    kickerLabel={
+                      webtoon.status === "completed"
+                        ? `${t.webtoonKicker} · ${t.statusCompletedBadge}`
+                        : webtoon.status === "ongoing"
+                          ? `${t.webtoonKicker} · ${t.statusOngoingBadge}`
+                          : t.webtoonKicker
+                    }
+                    saved={favoriteKeys.has(mediaKey(webtoon))}
+                    onToggleSave={() => toggleFavorite(webtoon)}
+                    lang={lang}
+                    t={t}
+                  />
+                ))}
+              </div>
+            )}
+
+            {!webtoonsLoading && !webtoonMatches.length ? (
+              <div className="empty-shelf">
+                <span className="empty-number" aria-hidden="true">
+                  ⌕
+                </span>
+                <div>
+                  <p className="eyebrow">{t.webtoonEyebrow}</p>
+                  <h3>{t.webtoonNoMatch}</h3>
+                  <p>{t.webtoonNoMatchHint}</p>
+                  {shelfFiltered ? (
+                    <button
+                      type="button"
+                      className="reset-seen"
+                      onClick={resetShelf}
+                    >
+                      {t.webtoonReset}
+                    </button>
+                  ) : null}
+                </div>
+                <div className="empty-lines" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            ) : null}
 
             {webtoonMatches.length ? (
               <div className="results-actions">

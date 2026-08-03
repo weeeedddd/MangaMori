@@ -60,6 +60,14 @@ const TAG_TO_MOOD = {
   "Post-Apocalyptic": "Post-Apocalyptic",
 };
 
+// Publication status, stored as a single letter to keep the snapshot small.
+const STATUS_CODE = {
+  completed: "c",
+  ongoing: "o",
+  hiatus: "h",
+  cancelled: "x",
+};
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function getJson(url, attempt = 0) {
@@ -197,6 +205,8 @@ async function main() {
     if (follows) record.p = follows;
     if (chapters) record.ch = chapters;
     if (genres.length) record.g = genres;
+    if (STATUS_CODE[attributes.status]) record.st = STATUS_CODE[attributes.status];
+    if (attributes.year) record.y = attributes.year;
     webtoons.push(record);
   }
 

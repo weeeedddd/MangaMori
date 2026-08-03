@@ -37,6 +37,25 @@ export type Translations = {
   webtoonSource: string;
   webtoonCountEyebrow: string;
   webtoonCount: (shown: number, total: number) => string;
+  webtoonToolbarAria: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  searchClear: string;
+  statusLabel: string;
+  statusAll: string;
+  statusCompleted: string;
+  statusOngoing: string;
+  sortLabel: string;
+  sortScore: string;
+  sortPopular: string;
+  sortChapters: string;
+  sortNewest: string;
+  webtoonLoading: string;
+  webtoonNoMatch: string;
+  webtoonNoMatchHint: string;
+  webtoonReset: string;
+  statusCompletedBadge: string;
+  statusOngoingBadge: string;
 
   viewSwitchAria: string;
   matchAria: string;
@@ -164,6 +183,26 @@ export const translations: Record<Lang, Translations> = {
     webtoonCountEyebrow: "Noch lange nicht durch",
     webtoonCount: (shown, total) =>
       `${shown} von ${total} passenden Manhwa im Regal.`,
+    webtoonToolbarAria: "Regal durchsuchen und sortieren",
+    searchLabel: "Titel suchen",
+    searchPlaceholder: "Nach Titel suchen …",
+    searchClear: "Suche leeren",
+    statusLabel: "Status",
+    statusAll: "Alle",
+    statusCompleted: "Abgeschlossen",
+    statusOngoing: "Laufend",
+    sortLabel: "Sortieren",
+    sortScore: "Beste Bewertung",
+    sortPopular: "Beliebteste",
+    sortChapters: "Meiste Kapitel",
+    sortNewest: "Neueste",
+    webtoonLoading: "Bibliothek wird geladen …",
+    webtoonNoMatch: "Kein Manhwa passt zu dieser Suche.",
+    webtoonNoMatchHint:
+      "Versuch einen anderen Titel oder setze die Filter zurück.",
+    webtoonReset: "Filter zurücksetzen",
+    statusCompletedBadge: "Abgeschlossen",
+    statusOngoingBadge: "Laufend",
 
     viewSwitchAria: "Ansicht wechseln",
     matchAria: "Passende Vorlieben",
@@ -345,6 +384,25 @@ export const translations: Record<Lang, Translations> = {
     webtoonCountEyebrow: "Nowhere near done",
     webtoonCount: (shown, total) =>
       `${shown} of ${total} matching manhwa on the shelf.`,
+    webtoonToolbarAria: "Search and sort the shelf",
+    searchLabel: "Search titles",
+    searchPlaceholder: "Search by title …",
+    searchClear: "Clear search",
+    statusLabel: "Status",
+    statusAll: "All",
+    statusCompleted: "Completed",
+    statusOngoing: "Ongoing",
+    sortLabel: "Sort by",
+    sortScore: "Top rated",
+    sortPopular: "Most popular",
+    sortChapters: "Most chapters",
+    sortNewest: "Newest",
+    webtoonLoading: "Loading the library …",
+    webtoonNoMatch: "No manhwa matches this search.",
+    webtoonNoMatchHint: "Try a different title or reset the filters.",
+    webtoonReset: "Reset filters",
+    statusCompletedBadge: "Completed",
+    statusOngoingBadge: "Ongoing",
 
     viewSwitchAria: "Switch view",
     matchAria: "Matching tastes",
